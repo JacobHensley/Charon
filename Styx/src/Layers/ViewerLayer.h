@@ -1,7 +1,7 @@
 #pragma once
 #include "Charon/Core/Layer.h"
 #include "Charon/Graphics/Camera.h"
-#include "Charon/Graphics/Mesh.h"
+#include "Charon/Asset/AssetManager.h"
 #include <glm/gtc/type_ptr.hpp>
 
 namespace Charon {
@@ -20,7 +20,7 @@ namespace Charon {
 
 	private:
 		Ref<Camera> m_Camera;
-		Ref<Mesh> m_Mesh;
+		AssetHandle m_MeshHandle;
 		glm::mat4 m_MeshTransform;
 	};
 

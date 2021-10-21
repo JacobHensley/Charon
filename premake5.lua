@@ -79,11 +79,6 @@ project "Charon"
 		runtime "Debug"
 		symbols "On"
 
-		defines 
-		{
-			"CR_ENABLE_ASSERTS"
-		}
-
 	filter "configurations:Release"
 		runtime "Release"
 		optimize "On"
@@ -136,6 +131,11 @@ project "Styx"
 	filter "configurations:Debug"
 		runtime "Debug"
 		symbols "On"
+		
+		defines 
+		{
+			"CR_ENABLE_ASSERTS"
+		}
 
 	filter "configurations:Release"
 		runtime "Release"

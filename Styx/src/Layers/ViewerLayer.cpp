@@ -2,6 +2,7 @@
 #include "ViewerLayer.h"
 #include "Charon/Core/Core.h"
 #include "Charon/Core/Application.h"
+#include "Charon/Graphics/Mesh.h"
 #include "Charon/Graphics/Renderer.h"
 #include "Charon/ImGui/imgui_impl_vulkan_with_textures.h"
 #include "imgui/imgui.h"
@@ -17,7 +18,8 @@ namespace Charon {
 	void ViewerLayer::Init()
 	{
 		m_Camera = CreateRef<Camera>(glm::perspectiveFov(glm::radians(45.0f), 1280.0f, 720.0f, 0.1f, 100.0f));
-		m_Mesh = CreateRef<Mesh>("assets/models/ObjectParentTest.gltf");
+		m_MeshHandle = AssetManager::Load<Mesh>("assets/models/ObjectParentTest.gltf");
+
 		m_MeshTransform = glm::mat4(1.0f);
 	}
 
@@ -33,7 +35,7 @@ namespace Charon {
 		renderer->BeginScene(m_Camera);
 
 		renderer->BeginRenderPass(renderer->GetFramebuffer());
-		renderer->SubmitMesh(m_Mesh, m_MeshTransform);
+		renderer->SubmitMesh(AssetManager::Get<Mesh>(m_MeshHandle), m_MeshTransform);
 		renderer->Render();
 		renderer->EndRenderPass();
 

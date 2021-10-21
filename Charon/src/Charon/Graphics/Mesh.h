@@ -1,4 +1,5 @@
 #pragma once
+#include "Charon/Asset/Asset.h"
 #include "Charon/Graphics/Buffers.h"
 #include <tinygltf/tiny_gltf.h>
 #include <glm/glm.hpp>
@@ -21,7 +22,7 @@ namespace Charon {
 		glm::vec2 TextureCoords;
 	};
 
-	class Mesh
+	class Mesh : public Asset
 	{
 	public:
 		Mesh(const std::string& path);

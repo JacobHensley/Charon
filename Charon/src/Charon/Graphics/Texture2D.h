@@ -1,4 +1,5 @@
 #pragma once
+#include "Charon/Asset/Asset.h"
 #include "Charon/Graphics/Image.h"
 #include "Charon/Graphics/VulkanTools.h"
 #include "VulkanAllocator.h"
@@ -6,7 +7,7 @@
 
 namespace Charon {
 
-	class Texture2D
+	class Texture2D : public Asset
 	{
 	public:
 		Texture2D(const std::string& path);

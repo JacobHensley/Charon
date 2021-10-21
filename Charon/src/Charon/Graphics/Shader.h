@@ -1,4 +1,5 @@
 #pragma once
+#include "Charon/Asset/Asset.h"
 #include <vulkan/vulkan.h>
 
 namespace Charon {
@@ -42,7 +43,7 @@ namespace Charon {
 		std::vector<ShaderUniform> Uniforms;
 	};
 
-	class Shader
+	class Shader : public Asset
 	{
 	public:
 		Shader(const std::string& path);
