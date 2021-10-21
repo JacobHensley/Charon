@@ -89,6 +89,16 @@ namespace Charon {
 			return uuid;
 		}
 
+		// Returns the asset with the specified UUID and if that UUID is not found then it InsertAndLoads the asset
+		template<typename T>
+		static AssetHandle TryInsertAndLoad(UUID uuid, const std::string& path)
+		{
+			if (m_Assets.find(uuid) != m_Assets.end())
+				return uuid;
+
+			return InsertAndLoad<T>(uuid, path);
+		}
+
 		// Inserts an asset into the system with no checks as to whether or not an assets exists in the slot already
 		static AssetHandle Insert(Ref<Asset> asset, const std::string& path, UUID uuid)
 		{
@@ -100,6 +110,14 @@ namespace Charon {
 			m_AssetPaths[uuid] = absolutePath;
 			m_Paths[absolutePath] = uuid;
 			return uuid;
+		}
+
+		// Clears the entire system intended for use on application shutdown
+		static void Clear()
+		{
+			m_Assets.clear();
+			m_AssetPaths.clear();
+			m_Paths.clear();
 		}
 
 	public:
@@ -119,7 +137,7 @@ namespace Charon {
 			{
 				case AssetType::MESH:		return "Mesh";
 				case AssetType::TEXTURE_2D: return "Texture2D";
-				case AssetType::SHADER:		return "SHADER";
+				case AssetType::SHADER:		return "Shader";
 			}
 
 			CR_ASSERT(false, "Unknown Type");

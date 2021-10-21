@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Application.h"
 #include "Charon/Graphics/VulkanAllocator.h"
+#include "Charon/Asset/AssetManager.h"
 #include <imgui.h>
 
 namespace Charon {
@@ -26,6 +27,7 @@ namespace Charon {
 
 		// Vulkan shutdown
 		m_SwapChain.reset();
+		AssetManager::Clear();
 		VulkanAllocator::Shutdown();
 		m_Device.reset();
 		m_Window.reset();

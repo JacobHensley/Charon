@@ -26,10 +26,13 @@ IncludeDir["VMA"]               = "Charon/vendor/VMA/include"
 IncludeDir["SPIRVCross"]        = "Charon/vendor/SPIRV-Cross"
 IncludeDir["imgui"]             = "Charon/vendor/imgui"
 IncludeDir["stb_image"]         = "Charon/vendor/stb"
+IncludeDir["yamlCPP"] 			= "Charon/vendor/yaml-cpp/include"
+IncludeDir["EnTT"] 				= "Charon/vendor/entt/single_include"
 
 include "Charon/vendor/GLFW"
 include "Charon/vendor/SPIRV-Cross"
 include "Charon/vendor/imgui"
+include "Charon/vendor/yaml-cpp"
 
 project "Charon"
 	location "Charon"
@@ -69,6 +72,8 @@ project "Charon"
 		"%{IncludeDir.SPIRVCross}",
 		"%{IncludeDir.imgui}",
 		"%{IncludeDir.stb_image}",
+		"%{IncludeDir.yamlCPP}",
+		"%{IncludeDir.EnTT}",
 	}
 
 	filter "system:windows"
@@ -112,6 +117,8 @@ project "Styx"
 		"%{IncludeDir.SPIRVCross}",
 		"%{IncludeDir.imgui}",
 		"%{IncludeDir.stb_image}",
+		"%{IncludeDir.yamlCPP}",
+		"%{IncludeDir.EnTT}",
 	}
 
 	links 
@@ -120,6 +127,7 @@ project "Styx"
 		"GLFW",
 		"SPIRV-Cross",
 		"imgui",
+		"yaml-cpp",
 		VK_SDK_PATH .. "/Lib/vulkan-1.lib",
 		VK_SDK_PATH .. "/Lib/shaderc_shared.lib",
 	}
