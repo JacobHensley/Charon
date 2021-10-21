@@ -7,7 +7,7 @@
 #include "Charon/Graphics/Mesh.h"
 
 namespace Charon {
-	
+
 	struct CameraBuffer
 	{
 		glm::mat4 ViewProjection;

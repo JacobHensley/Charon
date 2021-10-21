@@ -24,7 +24,6 @@ namespace Charon {
 		Ref<Scene> m_Scene;
 		SceneObject m_SceneObject;
 		AssetHandle m_MeshHandle;
-		glm::mat4 m_MeshTransform;
 	};
 
 }

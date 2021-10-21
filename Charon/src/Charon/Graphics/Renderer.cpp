@@ -12,7 +12,7 @@ namespace Charon {
 		s_Instance = this;
 		Init();
 	}
-	
+
 	Renderer::~Renderer()
 	{
 		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
@@ -46,7 +46,7 @@ namespace Charon {
 		uint32_t frameIndex = swapChain->GetCurrentBufferIndex();
 
 		m_ActiveCommandBuffer = swapChain->GetCurrentCommandBuffer();
-		
+
 		VK_CHECK_RESULT(vkResetDescriptorPool(device, m_DescriptorPools[frameIndex], 0));
 
 		const std::vector<VkDescriptorSetLayout>& layouts = m_Shader->GetDescriptorSetLayouts();

@@ -2,6 +2,7 @@
 #include "Scene.h"
 #include "Charon/Scene/SceneObject.h"
 #include "Charon/Scene/Components.h"
+#include "Charon/Graphics/SceneRenderer.h"
 
 namespace Charon {
 
@@ -15,6 +16,16 @@ namespace Charon {
 
 	void Scene::Render(Ref<Camera> camera)
 	{
+		SceneRenderer::Begin(this, camera);
+
+		auto group = m_Registry.group<MeshComponent>(entt::get<TransformComponent>);
+		for (auto object : group)
+		{
+			auto [transform, mesh] = group.get<TransformComponent, MeshComponent>(object);
+			SceneRenderer::SubmitMesh(mesh.GetMesh(), transform.GetTransform());
+		}
+
+		SceneRenderer::End();
 	}
 
 	SceneObject Scene::CreateObject(const std::string& tag)
