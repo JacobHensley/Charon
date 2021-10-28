@@ -64,7 +64,7 @@ namespace Charon {
 		uint32_t stride = sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec2);
 
 		m_Shader = CreateRef<Shader>("assets/shaders/test.shader");
-		m_Pipeline = CreateRef<VulkanPipeline>(m_Shader, swapChain->GetRenderPass(), vertexInputAttributes, stride);
+		m_Pipeline = CreateRef<VulkanPipeline>(m_Shader, m_Framebuffer->GetRenderPass(), vertexInputAttributes, stride);
 
 		CreateDescriptorPools();
 	}

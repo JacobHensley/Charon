@@ -1,7 +1,10 @@
 #include "ParticleLayer.h"
 #include "Charon/Core/Application.h"
 #include "Charon/Graphics/Renderer.h"
+#include "Charon/Graphics/SceneRenderer.h"
 #include <glm/gtc/type_ptr.hpp>
+#include "Charon/ImGui/imgui_impl_vulkan_with_textures.h"
+#include "imgui/imgui.h"
 
 namespace Charon {
 
@@ -22,6 +25,7 @@ namespace Charon {
 		m_MaxQauds = 4;
 		m_MaxIndices = m_MaxQauds * 6;
 
+		// TODO: change vertex size
 		m_StorageBuffer = CreateRef<StorageBuffer>(sizeof(Vertex) * 4 * m_MaxQauds);
 		m_ComputeShader = CreateRef<Shader>("assets/shaders/compute.shader");
 
@@ -125,6 +129,7 @@ namespace Charon {
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
 
 		// Create command buffer from device on the grapics queue and start recording
+		// TODO: Move to compute queue
 		VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 		
 		// Re-Allocate DescriptorSet
@@ -161,7 +166,7 @@ namespace Charon {
 		VkCommandBuffer commandBuffer = renderer->GetActiveCommandBuffer();
 
 		renderer->BeginScene(m_Camera);
-		renderer->BeginRenderPass();
+		renderer->BeginRenderPass(renderer->GetFramebuffer());
 
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipeline());
 
@@ -176,11 +181,28 @@ namespace Charon {
 		vkCmdDrawIndexed(commandBuffer, m_MaxIndices, 1, 0, 0, 0);
 
 		renderer->EndRenderPass();
+
+		renderer->BeginRenderPass();
+		renderer->RenderUI();
+		renderer->EndRenderPass();
+
 		renderer->EndScene();
 	}
 
 	void ParticleLayer::OnImGUIRender()
 	{
+		ImGui::Begin("Viewport");
+
+		auto& descriptorInfo = SceneRenderer::GetFinalBuffer()->GetImage(0)->GetDescriptorImageInfo();
+		ImTextureID imTex = ImGui_ImplVulkan_AddTexture(descriptorInfo.sampler, descriptorInfo.imageView, descriptorInfo.imageLayout);
+
+		const auto& fbSpec = SceneRenderer::GetFinalBuffer()->GetSpecification();
+		float width = ImGui::GetContentRegionAvail().x;
+		float aspect = (float)fbSpec.Height / (float)fbSpec.Width;
+
+		ImGui::Image(imTex, { width, width * aspect }, ImVec2(0, 1), ImVec2(1, 0));
+
+		ImGui::End();
 	}
 
 }

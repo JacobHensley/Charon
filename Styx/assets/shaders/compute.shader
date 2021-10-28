@@ -29,17 +29,17 @@ void main()
 	else if (particleIndex == 1)
 	{
 		particlePostion = vec3(5.0, 1.0, 0.0);
-		particleColor = vec3(0.0, 1.0, 0.0); //
+		particleColor = vec3(0.0, 1.0, 0.0);
 	}
 	else if (particleIndex == 2)
 	{
 		particlePostion = vec3(-3.0, 2.0, 2.0);
-		particleColor = vec3(1.0, 0.0, 0.0); //
+		particleColor = vec3(1.0, 0.0, 0.0);
 	}
 	else if (particleIndex == 3)
 	{
 		particlePostion = vec3(-5.0, 1.0, 0.0);
-		particleColor = vec3(0.0, 0.0, 1.0); //
+		particleColor = vec3(0.0, 0.0, 1.0);
 	}
 
 	vertices[vertexIndex + 0].Position = particlePostion + vec3(-0.5, -0.5, 0.0);
