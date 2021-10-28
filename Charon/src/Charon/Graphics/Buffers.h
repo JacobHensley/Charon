@@ -59,6 +59,23 @@ namespace Charon {
 		uint32_t m_Size = 0;
 	};
 
+	// Storage Buffer
+	class StorageBuffer
+	{
+	public:
+		StorageBuffer(uint32_t size);
+		~StorageBuffer();
+
+	public:
+		VkBuffer GetBuffer() { return m_BufferInfo.Buffer; }
+		const VkDescriptorBufferInfo& getDescriptorBufferInfo() { return m_DescriptorBufferInfo; }
+
+	private:
+		BufferInfo m_BufferInfo;
+		VkDescriptorBufferInfo m_DescriptorBufferInfo;
+		uint32_t m_Size = 0;
+	};
+
 	// Vulkan Buffer
 	class VulkanBuffer
 	{

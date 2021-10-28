@@ -10,8 +10,8 @@ namespace Charon {
 		VK_DYNAMIC_STATE_LINE_WIDTH
 	};
 
-	VulkanPipeline::VulkanPipeline(Ref<Shader> shader, VkRenderPass renderPass)
-		: m_Shader(shader), m_RenderPass(renderPass)
+	VulkanPipeline::VulkanPipeline(Ref<Shader> shader, VkRenderPass renderPass, const std::vector<VkVertexInputAttributeDescription>& vertexAttributes, uint32_t stride)
+		: m_Shader(shader), m_RenderPass(renderPass), m_VertexAttributes(vertexAttributes), m_Stride(stride)
 	{
 		Init();
 		CR_LOG_INFO("Initialized Vulkan pipeline");
@@ -27,36 +27,10 @@ namespace Charon {
 
 	void VulkanPipeline::Init()
 	{
-		std::vector<VkVertexInputAttributeDescription> vertexInputAttributes(4);
-
-		// Vertex 0: Position
-		vertexInputAttributes[0].binding = 0;
-		vertexInputAttributes[0].location = 0;
-		vertexInputAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		vertexInputAttributes[0].offset = 0;
-
-		// Vertex 1: Normal
-		vertexInputAttributes[1].binding = 0;
-		vertexInputAttributes[1].location = 1;
-		vertexInputAttributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		vertexInputAttributes[1].offset = 12;
-
-		// Vertex 2: Tangent
-		vertexInputAttributes[2].binding = 0;
-		vertexInputAttributes[2].location = 2;
-		vertexInputAttributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-		vertexInputAttributes[2].offset = 24;
-
-		// Vertex 3: TextureCoords
-		vertexInputAttributes[3].binding = 0;
-		vertexInputAttributes[3].location = 3;
-		vertexInputAttributes[3].format = VK_FORMAT_R32G32_SFLOAT;
-		vertexInputAttributes[3].offset = 36;
-
 		// Set vertex attributes
 		VkVertexInputBindingDescription vertexInputBinding = {};
 		vertexInputBinding.binding = 0;
-		vertexInputBinding.stride = sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec2); // Size of entire vertex
+		vertexInputBinding.stride = m_Stride;
 		vertexInputBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 		// Create vertex input
@@ -64,8 +38,8 @@ namespace Charon {
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		vertexInputInfo.vertexBindingDescriptionCount = 1;
 		vertexInputInfo.pVertexBindingDescriptions = &vertexInputBinding;
-		vertexInputInfo.vertexAttributeDescriptionCount = vertexInputAttributes.size();
-		vertexInputInfo.pVertexAttributeDescriptions = vertexInputAttributes.data();
+		vertexInputInfo.vertexAttributeDescriptionCount = m_VertexAttributes.size();
+		vertexInputInfo.pVertexAttributeDescriptions = m_VertexAttributes.data();
 
 		// Create input assembly
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly{};

@@ -45,6 +45,10 @@ namespace Charon {
 
 		void OnImGuiRender();
 
+		Ref<VulkanPipeline> GetPipeline() { return m_Pipeline; }
+		std::vector<VkDescriptorSet> GetDescriptorSets() { return m_DescriptorSets; }
+		VkCommandBuffer GetActiveCommandBuffer() { return m_ActiveCommandBuffer; }
+
 		Ref<Framebuffer> GetFramebuffer() { return m_Framebuffer; }
 
 		static VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetAllocateInfo allocInfo);

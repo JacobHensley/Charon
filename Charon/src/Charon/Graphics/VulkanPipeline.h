@@ -7,7 +7,7 @@ namespace Charon {
 	class VulkanPipeline
 	{
 	public:
-		VulkanPipeline(Ref<Shader> shader, VkRenderPass renderPass);
+		VulkanPipeline(Ref<Shader> shader, VkRenderPass renderPass, const std::vector<VkVertexInputAttributeDescription>& vertexAttributes, uint32_t stride);
 		~VulkanPipeline();
 
 	public:
@@ -23,6 +23,9 @@ namespace Charon {
 
 		Ref<Shader> m_Shader;
 		VkRenderPass m_RenderPass;
+
+		const std::vector<VkVertexInputAttributeDescription>& m_VertexAttributes;
+		uint32_t m_Stride;
 	};
 
 }
