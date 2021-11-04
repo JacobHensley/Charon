@@ -27,6 +27,9 @@ namespace Charon {
 		inline Ref<VulkanDevice> GetVulkanDevice() { return m_Device; }
 		inline Ref<SwapChain> GetVulkanSwapChain() { return m_SwapChain; }
 
+		float GetGlobalTime() const { return m_GlobalTime; }
+		float GetDeltaTime() const { return m_DeltaTime; }
+
 		inline static Application& GetApp() { return *s_Instance; }
 
 	private:
@@ -48,6 +51,8 @@ namespace Charon {
 		Ref<VulkanDevice> m_Device;
 		Ref<SwapChain> m_SwapChain;
 
+		float m_GlobalTime = 0.0f; // in seconds
+		float m_DeltaTime = 0.0f; // in seconds
 	private:
 		static Application* s_Instance;
 	};

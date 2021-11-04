@@ -57,21 +57,21 @@ namespace Charon {
 		: m_Size(size)
 	{
 		// Create buffer info
-		VkBufferCreateInfo vertexBufferCreateInfo = {};
-		vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		vertexBufferCreateInfo.size = size;
-		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+		VkBufferCreateInfo uniformBufferCreateInfo = {};
+		uniformBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		uniformBufferCreateInfo.size = size;
+		uniformBufferCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
 		// Allocate memory
 		VulkanAllocator allocator("UniformBuffer");
-		m_BufferInfo.Allocation = allocator.AllocateBuffer(vertexBufferCreateInfo, VMA_MEMORY_USAGE_CPU_TO_GPU, m_BufferInfo.Buffer);
+		m_BufferInfo.Allocation = allocator.AllocateBuffer(uniformBufferCreateInfo, VMA_MEMORY_USAGE_CPU_TO_GPU, m_BufferInfo.Buffer);
 
 		if (data)
 			UpdateBuffer(data);
 
 		m_DescriptorBufferInfo.buffer = m_BufferInfo.Buffer;
 		m_DescriptorBufferInfo.offset = 0;
-		m_DescriptorBufferInfo.range = VK_WHOLE_SIZE;
+		m_DescriptorBufferInfo.range = size;
 	}
 
 	UniformBuffer::~UniformBuffer()
@@ -99,7 +99,7 @@ namespace Charon {
 
 		// Allocate memory
 		VulkanAllocator allocator("StorageBuffer");
-		m_BufferInfo.Allocation = allocator.AllocateBuffer(vertexBufferCreateInfo, VMA_MEMORY_USAGE_GPU_ONLY, m_BufferInfo.Buffer);
+		m_BufferInfo.Allocation = allocator.AllocateBuffer(vertexBufferCreateInfo, VMA_MEMORY_USAGE_CPU_TO_GPU, m_BufferInfo.Buffer);
 
 		m_DescriptorBufferInfo.buffer = m_BufferInfo.Buffer;
 		m_DescriptorBufferInfo.offset = 0;

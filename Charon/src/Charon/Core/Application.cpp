@@ -86,8 +86,13 @@ namespace Charon {
 
 	void Application::Run()
 	{
+		float lastTime = m_GlobalTime;
 		while (!m_Window->IsClosed())
 		{
+			m_GlobalTime = (float)glfwGetTime();
+			m_DeltaTime = m_GlobalTime - lastTime;
+			lastTime = m_GlobalTime;
+
 			OnUpdate();
 			
 			m_SwapChain->BeginFrame();
