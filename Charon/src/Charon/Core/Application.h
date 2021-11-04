@@ -27,6 +27,9 @@ namespace Charon {
 		inline Ref<VulkanDevice> GetVulkanDevice() { return m_Device; }
 		inline Ref<SwapChain> GetVulkanSwapChain() { return m_SwapChain; }
 
+		float GetGlobalTime() const { return m_GlobalTime; }
+		float GetDeltaTime() const { return m_DeltaTime; }
+
 		inline static Application& GetApp() { return *s_Instance; }
 
 		float GetGlobalTime() const { return m_GlobalTime; }

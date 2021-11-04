@@ -68,6 +68,7 @@ namespace Charon {
 
 	public:
 		VkBuffer GetBuffer() { return m_BufferInfo.Buffer; }
+		BufferInfo GetBufferInfo() { return m_BufferInfo; }
 		const VkDescriptorBufferInfo& getDescriptorBufferInfo() { return m_DescriptorBufferInfo; }
 
 	private:

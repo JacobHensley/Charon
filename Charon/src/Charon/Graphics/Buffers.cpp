@@ -99,7 +99,7 @@ namespace Charon {
 
 		// Allocate memory
 		VulkanAllocator allocator("StorageBuffer");
-		m_BufferInfo.Allocation = allocator.AllocateBuffer(vertexBufferCreateInfo, VMA_MEMORY_USAGE_GPU_ONLY, m_BufferInfo.Buffer);
+		m_BufferInfo.Allocation = allocator.AllocateBuffer(vertexBufferCreateInfo, VMA_MEMORY_USAGE_CPU_TO_GPU, m_BufferInfo.Buffer);
 
 		m_DescriptorBufferInfo.buffer = m_BufferInfo.Buffer;
 		m_DescriptorBufferInfo.offset = 0;
