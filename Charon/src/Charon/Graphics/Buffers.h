@@ -53,6 +53,18 @@ namespace Charon {
 		void UpdateBuffer(void* data);
 		const VkDescriptorBufferInfo& getDescriptorBufferInfo() { return m_DescriptorBufferInfo; }
 
+		template<typename T>
+		void* Map()
+		{
+			VulkanAllocator allocator("StorageBuffer");
+			return allocator.MapMemory<T>(m_BufferInfo.Allocation);
+		}
+
+		void Unmap()
+		{
+			VulkanAllocator allocator("StorageBuffer");
+			return allocator.UnmapMemory(m_BufferInfo.Allocation);
+		}
 	private:
 		BufferInfo m_BufferInfo;
 		VkDescriptorBufferInfo m_DescriptorBufferInfo;
@@ -63,7 +75,7 @@ namespace Charon {
 	class StorageBuffer
 	{
 	public:
-		StorageBuffer(uint32_t size);
+		StorageBuffer(uint32_t size, bool cpu = false);
 		~StorageBuffer();
 
 	public:
@@ -71,6 +83,18 @@ namespace Charon {
 		BufferInfo GetBufferInfo() { return m_BufferInfo; }
 		const VkDescriptorBufferInfo& getDescriptorBufferInfo() { return m_DescriptorBufferInfo; }
 
+		template<typename T>
+		T* Map()
+		{
+			VulkanAllocator allocator("StorageBuffer");
+			return allocator.MapMemory<T>(m_BufferInfo.Allocation);
+		}
+
+		void Unmap()
+		{
+			VulkanAllocator allocator("StorageBuffer");
+			return allocator.UnmapMemory(m_BufferInfo.Allocation);
+		}
 	private:
 		BufferInfo m_BufferInfo;
 		VkDescriptorBufferInfo m_DescriptorBufferInfo;

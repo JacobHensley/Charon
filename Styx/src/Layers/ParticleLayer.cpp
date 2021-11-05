@@ -28,6 +28,7 @@ namespace Charon {
 		// TODO: change vertex size
 		m_StorageBuffer = CreateRef<StorageBuffer>(sizeof(Vertex) * 4 * m_MaxQauds);
 		m_ComputeShader = CreateRef<Shader>("assets/shaders/compute.shader");
+		m_CounterBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t));
 
 		m_ParticleUB.MaxParticles = 1025;
 		m_ParticleUB.EmissionQuantity = 5;
@@ -40,7 +41,7 @@ namespace Charon {
 		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
 
 		// Set storage buffer binding
-		VkDescriptorSetLayoutBinding setLayoutBindings[2];
+		std::array<VkDescriptorSetLayoutBinding, 4> setLayoutBindings;
 		setLayoutBindings[0] = {};
 		setLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		setLayoutBindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -53,10 +54,22 @@ namespace Charon {
 		setLayoutBindings[1].binding = 1;
 		setLayoutBindings[1].descriptorCount = 1;
 
+		setLayoutBindings[2] = {};
+		setLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		setLayoutBindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		setLayoutBindings[2].binding = 2;
+		setLayoutBindings[2].descriptorCount = 1;
+
+		setLayoutBindings[3] = {};
+		setLayoutBindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		setLayoutBindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		setLayoutBindings[3].binding = 3;
+		setLayoutBindings[3].descriptorCount = 1;
+
 		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
 		descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		descriptorSetLayoutCreateInfo.pBindings = setLayoutBindings;
-		descriptorSetLayoutCreateInfo.bindingCount = 2;
+		descriptorSetLayoutCreateInfo.pBindings = setLayoutBindings.data();
+		descriptorSetLayoutCreateInfo.bindingCount = setLayoutBindings.size();
 
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, nullptr, &m_ComputeDescriptorSetLayout));
 
@@ -88,6 +101,20 @@ namespace Charon {
 		ubWriteDescriptor.pBufferInfo = &m_ParticleUniformBuffer->getDescriptorBufferInfo();
 		ubWriteDescriptor.descriptorCount = 1;
 
+		VkWriteDescriptorSet& counterBufferWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
+		counterBufferWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		counterBufferWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		counterBufferWriteDescriptor.dstBinding = 2;
+		counterBufferWriteDescriptor.pBufferInfo = &m_CounterBuffer->getDescriptorBufferInfo();
+		counterBufferWriteDescriptor.descriptorCount = 1;
+
+		VkWriteDescriptorSet& cameraWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
+		cameraWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		cameraWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		cameraWriteDescriptor.dstBinding = 3;
+		cameraWriteDescriptor.pBufferInfo = &renderer->GetCameraUB()->getDescriptorBufferInfo();
+		cameraWriteDescriptor.descriptorCount = 1;
+
 		// Create ComputePipeline with layer and compute shader
 		VkComputePipelineCreateInfo computePipelineCreateInfo{};
 		computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -116,7 +143,7 @@ namespace Charon {
 		// Create shader and pipeline used to draw particles
 		Ref<SwapChain> swapChain = Application::GetApp().GetVulkanSwapChain();
 		
-		std::vector<VkVertexInputAttributeDescription> vertexInputAttributes(3);
+		std::vector<VkVertexInputAttributeDescription> vertexInputAttributes(4);
 
 		// Vertex 0: Position
 		vertexInputAttributes[0].binding = 0;
@@ -136,6 +163,12 @@ namespace Charon {
 		vertexInputAttributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
 		vertexInputAttributes[2].offset = offsetof(ParticleVertex, Velocity);
 
+		// Vertex 2: Velocity (for compute)
+		vertexInputAttributes[3].binding = 0;
+		vertexInputAttributes[3].location = 3;
+		vertexInputAttributes[3].format = VK_FORMAT_R32_SFLOAT;
+		vertexInputAttributes[3].offset = offsetof(ParticleVertex, RemainingLifetime);
+
 		uint32_t stride = sizeof(ParticleVertex);
 
 		m_Shader = CreateRef<Shader>("assets/shaders/particle.shader");
@@ -149,6 +182,7 @@ namespace Charon {
 		m_ParticleUB.Time = Application::GetApp().GetGlobalTime();
 		m_ParticleUniformBuffer->UpdateBuffer(&m_ParticleUB);
 
+
 		if (m_ParticleUB.ParticleCount < m_ParticleUB.MaxParticles)
 		{
 			m_ParticleUB.ParticleCount += m_ParticleUB.EmissionQuantity;
@@ -157,7 +191,7 @@ namespace Charon {
 		{
 			m_ParticleUB.EmissionQuantity = 0;
 		}
-
+		std::cout << m_ParticleUB.ParticleCount << std::endl;
 
 		auto renderer = Application::GetApp().GetRenderer();
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
@@ -184,8 +218,12 @@ namespace Charon {
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ComputePipelineLayout, 0, 1, &m_ComputeDescriptorSet, 0, 0);
 		vkCmdDispatch(commandBuffer, 1, 1, 1);
 
-		// Flush the command buffer and free it
+		// Flush the command buffer and free it (waits for compute shader to finish)
 		device->FlushCommandBuffer(commandBuffer, true);
+
+		m_ParticleUB.ParticleCount = *m_CounterBuffer->Map<uint32_t>();
+		m_CounterBuffer->Unmap();
+		std::cout << "Particle Count: " << m_ParticleUB.ParticleCount << std::endl;
 	}
 
 	void ParticleLayer::OnRender()

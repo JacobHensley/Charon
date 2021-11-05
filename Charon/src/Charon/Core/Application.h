@@ -31,8 +31,6 @@ namespace Charon {
 		float GetDeltaTime() const { return m_DeltaTime; }
 
 		inline static Application& GetApp() { return *s_Instance; }
-
-		float GetGlobalTime() const { return m_GlobalTime; }
 	private:
 		void Init();
 		void OnUpdate();

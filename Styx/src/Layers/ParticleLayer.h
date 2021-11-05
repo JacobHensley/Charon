@@ -35,10 +35,11 @@ namespace Charon {
             glm::vec3 Color;
             float Padding1;
 			glm::vec3 Velocity;
-			float Padding2;
+			float RemainingLifetime;
         };
 
         Ref<StorageBuffer> m_StorageBuffer;
+        Ref<StorageBuffer> m_CounterBuffer;
 
         struct ParticleUB
         {

@@ -12,6 +12,7 @@ namespace Charon {
 	{
 		glm::mat4 ViewProjection;
 		glm::mat4 InverseViewProjection;
+		glm::mat4 View;
 	};
 
 	struct DrawCommand
@@ -53,6 +54,7 @@ namespace Charon {
 
 		static VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetAllocateInfo allocInfo);
 
+		Ref<UniformBuffer> GetCameraUB() { return m_CameraUniformBuffer; }
 	private:
 		void Init();
 		void CreateDescriptorPools();

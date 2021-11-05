@@ -34,6 +34,13 @@ layout(std140, binding = 2) buffer CounterBuffer
 	uint ParticleCount;
 };
 
+layout(binding = 3) uniform CameraBuffer
+{
+	mat4 ViewProjection;
+	mat4 InverseViewProjection;
+	mat4 View;
+} u_CameraBuffer;
+
 vec3 hash31(float p)
 {
 	vec3 p3 = fract(vec3(p) * vec3(.1031, .1030, .0973));
@@ -53,22 +60,25 @@ vec3 RandomVec3(float offset)
 
 void EmitQuad(uint vertexIndex, vec3 position, vec3 color, vec3 velocity)
 {
-	vertices[vertexIndex + 0].Position = position + vec3(-0.5, -0.5, 0.0);
+	vec3 camRightWS = { u_CameraBuffer.View[0][0],  u_CameraBuffer.View[1][0], u_CameraBuffer.View[2][0] }; // X
+	vec3 camUpWS = { u_CameraBuffer.View[0][1],  u_CameraBuffer.View[1][1], u_CameraBuffer.View[2][1] };    // Y
+
+	vertices[vertexIndex + 0].Position = position + (camRightWS * -0.5 + camUpWS * -0.5);
 	vertices[vertexIndex + 0].Color = color;
 	vertices[vertexIndex + 0].Velocity = velocity;
 	vertices[vertexIndex + 0].RemainingLifetime = u_Particle.InitalLifetime;
 
-	vertices[vertexIndex + 1].Position = position + vec3(0.5, -0.5, 0.0);
+	vertices[vertexIndex + 1].Position = position + (camRightWS * 0.5 + camUpWS * -0.5);
 	vertices[vertexIndex + 1].Color = color;
 	vertices[vertexIndex + 1].Velocity = velocity;
 	vertices[vertexIndex + 1].RemainingLifetime = u_Particle.InitalLifetime;
 
-	vertices[vertexIndex + 2].Position = position + vec3(0.5, 0.5, 0.0);
+	vertices[vertexIndex + 2].Position = position + (camRightWS * 0.5 + camUpWS * 0.5);
 	vertices[vertexIndex + 2].Color = color;
 	vertices[vertexIndex + 2].Velocity = velocity;
 	vertices[vertexIndex + 2].RemainingLifetime = u_Particle.InitalLifetime;
 
-	vertices[vertexIndex + 3].Position = position + vec3(-0.5, 0.5, 0.0);
+	vertices[vertexIndex + 3].Position = position + (camRightWS * -0.5 + camUpWS * 0.5);
 	vertices[vertexIndex + 3].Color = color;
 	vertices[vertexIndex + 3].Velocity = velocity;
 	vertices[vertexIndex + 3].RemainingLifetime = u_Particle.InitalLifetime;
@@ -78,7 +88,7 @@ void EmitQuad(uint vertexIndex, vec3 position, vec3 color, vec3 velocity)
 
 void EmitParticle(uint index)
 {
-	EmitQuad(index * 4, u_Particle.EmitterPosition + RandomVec3() - 0.5f, vec3(1.0), RandomVec3(float(index)) * 0.003f);
+	EmitQuad(index * 4, u_Particle.EmitterPosition + RandomVec3() - 0.5f, RandomVec3(float(index) * 0.238f), RandomVec3(float(index)) * 0.003f);
 }
 
 void EmitParticles()
@@ -99,15 +109,17 @@ void MoveQuad(uint vertexIndex)
 	vertices[vertexIndex + 2].RemainingLifetime = vertices[vertexIndex + 2].RemainingLifetime - RandomVec3(float(vertexIndex)).x * 0.001f;
 	vertices[vertexIndex + 3].RemainingLifetime = vertices[vertexIndex + 3].RemainingLifetime - RandomVec3(float(vertexIndex)).x * 0.001f;
 
-	vertices[vertexIndex + 0].Color = vec3(vertices[vertexIndex + 0].RemainingLifetime);
-	vertices[vertexIndex + 1].Color = vec3(vertices[vertexIndex + 1].RemainingLifetime);
-	vertices[vertexIndex + 2].Color = vec3(vertices[vertexIndex + 2].RemainingLifetime);
-	vertices[vertexIndex + 3].Color = vec3(vertices[vertexIndex + 3].RemainingLifetime);
+	float life = vertices[vertexIndex + 0].RemainingLifetime / u_Particle.InitalLifetime;
 
-	vertices[vertexIndex + 0].Color.r = 1.0f;
-	vertices[vertexIndex + 1].Color.r = 1.0f;
-	vertices[vertexIndex + 2].Color.r = 1.0f;
-	vertices[vertexIndex + 3].Color.r = 1.0f;
+	vertices[vertexIndex + 0].Color = vertices[vertexIndex + 0].Color;//* life;
+	vertices[vertexIndex + 1].Color = vertices[vertexIndex + 0].Color;//* life;
+	vertices[vertexIndex + 2].Color = vertices[vertexIndex + 0].Color;//* life;
+	vertices[vertexIndex + 3].Color = vertices[vertexIndex + 0].Color;//* life;
+
+	//vertices[vertexIndex + 0].Color.r = 1.0f;
+	//vertices[vertexIndex + 1].Color.r = 1.0f;
+	//vertices[vertexIndex + 2].Color.r = 1.0f;
+	//vertices[vertexIndex + 3].Color.r = 1.0f;
 }
 
 bool IsDead(uint particleIndex)
