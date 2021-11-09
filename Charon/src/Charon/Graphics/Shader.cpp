@@ -3,7 +3,6 @@
 #include "Charon/Core/Application.h"
 #include "Charon/Graphics/VulkanTools.h"
 #include <shaderc/shaderc.hpp>
-
 #include <spirv_cross.hpp>
 #include <spirv_common.hpp>
 
@@ -37,43 +36,67 @@ namespace Charon {
 			return (VkShaderStageFlagBits)0;
 		}
 
-		// NOTE: This only takes in base type and size into account so arrays will be given the wrong type. If this becomes a issue we will change to vecsize.
-		static ShaderUniformType GetUniformType(spirv_cross::SPIRType baseType, uint32_t size)
+		static ShaderUniformType GetType(spirv_cross::SPIRType type)
 		{
-			spirv_cross::SPIRType::BaseType type = baseType.basetype;
-
-			if (type == spirv_cross::SPIRType::Float)
+			spirv_cross::SPIRType::BaseType baseType = type.basetype;
+		
+			if (baseType == spirv_cross::SPIRType::Float)
 			{
-				if (size == 4)			return ShaderUniformType::FLOAT;
-				else if (size == 4 * 2) return ShaderUniformType::FLOAT2;
-				else if (size == 4 * 3) return ShaderUniformType::FLOAT3;
-				else if (size == 4 * 4) return ShaderUniformType::FLOAT4;
-				else if (size == 64)	return ShaderUniformType::MAT4;
+				if (type.columns == 1)
+				{
+					if (type.vecsize == 1)	    return ShaderUniformType::FLOAT;
+					else if (type.vecsize == 2) return ShaderUniformType::FLOAT2;
+					else if (type.vecsize == 3) return ShaderUniformType::FLOAT3;
+					else if (type.vecsize == 4) return ShaderUniformType::FLOAT4;
+				}
+				else 
+				{
+					return ShaderUniformType::MAT4;
+				}
 			}
-			else if (type == spirv_cross::SPIRType::Int)	 return ShaderUniformType::INT;
-			else if (type == spirv_cross::SPIRType::Boolean) return ShaderUniformType::BOOL;
+			else if (baseType == spirv_cross::SPIRType::Image)
+			{
+				if (type.image.dim == 1)	     return ShaderUniformType::TEXTURE_2D;
+				else if (type.image.dim == 3)    return ShaderUniformType::TEXTURE_CUBE;
+			}
+			else if (baseType == spirv_cross::SPIRType::SampledImage)
+			{
+				if (type.image.dim == 1)		 return ShaderUniformType::TEXTURE_2D;
+				else if (type.image.dim == 3)    return ShaderUniformType::TEXTURE_CUBE;
+			}
+			else if (baseType == spirv_cross::SPIRType::Int)
+			{
+				return ShaderUniformType::INT;
+			}
+			else if (baseType == spirv_cross::SPIRType::UInt)
+			{
+				return ShaderUniformType::UINT;
+			}
+			else if (baseType == spirv_cross::SPIRType::Boolean)
+			{
+				return ShaderUniformType::BOOL;
+			}
 
 			CR_ASSERT(false, "Unknown Type");
 			return (ShaderUniformType)0;
 		}
 
-		static ShaderUniformType GetResourceType(spirv_cross::SPIRType baseType, uint32_t dimension)
+		static uint32_t GetTypeSize(ShaderUniformType type)
 		{
-			spirv_cross::SPIRType::BaseType type = baseType.basetype;
-
-			if (type == spirv_cross::SPIRType::Image)
+			switch (type)
 			{
-				if (dimension == 1)	     return ShaderUniformType::TEXTURE_2D;
-				else if (dimension == 3) return ShaderUniformType::TEXTURE_CUBE;
-			}
-			else if (type == spirv_cross::SPIRType::SampledImage)
-			{
-				if (dimension == 1)		 return ShaderUniformType::TEXTURE_2D;
-				else if (dimension == 3) return ShaderUniformType::TEXTURE_CUBE;
+				case Charon::ShaderUniformType::BOOL:   return 4;
+				case Charon::ShaderUniformType::INT:    return 4;
+				case Charon::ShaderUniformType::UINT:   return 4;
+				case Charon::ShaderUniformType::FLOAT:  return 4;
+				case Charon::ShaderUniformType::FLOAT2: return 4 * 2;
+				case Charon::ShaderUniformType::FLOAT3: return 4 * 3;
+				case Charon::ShaderUniformType::FLOAT4: return 4 * 4;
+				case Charon::ShaderUniformType::MAT4:   return 64;
 			}
 
 			CR_ASSERT(false, "Unknown Type");
-			return (ShaderUniformType)0;
+			return 0;
 		}
 
 	}
@@ -154,12 +177,11 @@ namespace Charon {
 
 			// Save shader stage info
 			m_ShaderCreateInfo.push_back(shaderStageInfo);
-			ReflectShader(spirv);
+			ReflectShader(spirv, stage);
 		}
 	}
 
-	// TODO: Get info about push constants, other types of buffers and shader stages
-	void Shader::ReflectShader(const std::vector<uint32_t>& data)
+	void Shader::ReflectShader(const std::vector<uint32_t>& data, ShaderStage stage)
 	{
 		spirv_cross::Compiler compiler(data);
 		spirv_cross::ShaderResources resources = compiler.get_shader_resources();
@@ -171,7 +193,6 @@ namespace Charon {
 			int memberCount = bufferType.member_types.size();
 
 			UniformBufferDescription& buffer = m_UniformBufferDescriptions.emplace_back();
-
 			buffer.Name = resource.name;
 			buffer.Size = compiler.get_declared_struct_size(bufferType);
 			buffer.BindingPoint = compiler.get_decoration(resource.id, spv::DecorationBinding);
@@ -183,10 +204,43 @@ namespace Charon {
 				ShaderUniform uniform;
 				uniform.Name = compiler.get_member_name(bufferType.self, i);
 				uniform.Size = compiler.get_declared_struct_member_size(bufferType, i);
-				uniform.Type = Utils::GetUniformType(compiler.get_type(bufferType.member_types[i]), uniform.Size);
+				uniform.Type = Utils::GetType(compiler.get_type(bufferType.member_types[i]));
 				uniform.Offset = compiler.type_struct_member_offset(bufferType, i);
 
 				buffer.Uniforms.push_back(uniform);
+			}
+		}
+
+		// Get all storage buffers
+		for (const spirv_cross::Resource& resource : resources.storage_buffers)
+		{
+			auto& bufferType = compiler.get_type(resource.base_type_id);
+			int memberCount = bufferType.member_types.size();
+
+			StorageBufferDescription& buffer = m_StorageBufferDescriptions.emplace_back();
+
+			buffer.Name = resource.name;
+			buffer.BindingPoint = compiler.get_decoration(resource.id, spv::DecorationBinding);
+			buffer.DescriptorSetIndex = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+		}
+
+		// Get all attributes
+		if (stage == ShaderStage::VERTEX)
+		{
+			uint32_t offset = 0;
+			for (const spirv_cross::Resource& resource : resources.stage_inputs)
+			{
+				auto& type = compiler.get_type(resource.base_type_id);
+
+				ShaderAttribute& attribute = m_ShaderAttributeDescriptions.emplace_back();
+
+				attribute.Name = resource.name;
+				attribute.Location = compiler.get_decoration(resource.id, spv::DecorationLocation);
+				attribute.Type = Utils::GetType(type);
+				attribute.Size = Utils::GetTypeSize(attribute.Type);
+				attribute.Offset = offset;
+
+				offset += attribute.Size;
 			}
 		}
 
@@ -195,18 +249,16 @@ namespace Charon {
 		{
 			auto& type = compiler.get_type(resource.base_type_id);
 
-			ShaderResource& uniform = m_ShaderResourceDescriptions.emplace_back();
+			ShaderResource& shaderResource = m_ShaderResourceDescriptions.emplace_back();
 
-			uniform.Name = resource.name;
-			uniform.BindingPoint = compiler.get_decoration(resource.id, spv::DecorationBinding);
-			uniform.DescriptorSetIndex = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
-			uniform.Dimension = type.image.dim;
-			uniform.Type = Utils::GetResourceType(type, uniform.Dimension);
+			shaderResource.Name = resource.name;
+			shaderResource.BindingPoint = compiler.get_decoration(resource.id, spv::DecorationBinding);
+			shaderResource.DescriptorSetIndex = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+			shaderResource.Dimension = type.image.dim;
+			shaderResource.Type = Utils::GetType(type);
 		}
-
 	}
 
-	// TODO: Get info a shader stages so we don't have to use VK_SHADER_STAGE_ALL
 	void Shader::CreateDescriptorSetLayouts()
 	{
 		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
@@ -225,6 +277,20 @@ namespace Charon {
 			layout.pImmutableSamplers = nullptr;
 
 			descriptorSetLayoutBindings[m_UniformBufferDescriptions[i].DescriptorSetIndex].push_back(layout);
+		}
+
+		// Create storage buffer layout bindings
+		for (int i = 0; i < m_StorageBufferDescriptions.size(); i++)
+		{
+			VkDescriptorSetLayoutBinding layout{};
+
+			layout.binding = m_StorageBufferDescriptions[i].BindingPoint;
+			layout.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			layout.descriptorCount = 1;
+			layout.stageFlags = VK_SHADER_STAGE_ALL;
+			layout.pImmutableSamplers = nullptr;
+
+			descriptorSetLayoutBindings[m_StorageBufferDescriptions[i].DescriptorSetIndex].push_back(layout);
 		}
 
 		// Create resource layout bindings
@@ -255,6 +321,14 @@ namespace Charon {
 				if (m_UniformBufferDescriptions[i].DescriptorSetIndex == descriptorSetIndex)
 				{
 					m_UniformBufferDescriptions[i].Index = ID;
+				}
+			}
+
+			for (int i = 0; i < m_StorageBufferDescriptions.size(); i++)
+			{
+				if (m_StorageBufferDescriptions[i].DescriptorSetIndex == descriptorSetIndex)
+				{
+					m_StorageBufferDescriptions[i].Index = ID;
 				}
 			}
 
