@@ -2,6 +2,7 @@
 #include "Charon/Core/Application.h"
 #include "Charon/Graphics/Renderer.h"
 #include "Charon/Graphics/SceneRenderer.h"
+#include "Charon/Graphics/VertexBufferLayout.h"
 #include <glm/gtc/type_ptr.hpp>
 #include "Charon/ImGui/imgui_impl_vulkan_with_textures.h"
 #include "imgui/imgui.h"
@@ -168,6 +169,14 @@ namespace Charon {
 		vertexInputAttributes[3].location = 3;
 		vertexInputAttributes[3].format = VK_FORMAT_R32_SFLOAT;
 		vertexInputAttributes[3].offset = offsetof(ParticleVertex, RemainingLifetime);
+
+		// -- TEST --
+		VertexBufferLayout layout({
+			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Position) },
+			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Color) },
+			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Velocity) },
+			{ ShaderUniformType::FLOAT,  offsetof(ParticleVertex, RemainingLifetime) },
+		});
 
 		uint32_t stride = sizeof(ParticleVertex);
 

@@ -75,6 +75,8 @@ namespace Charon {
 		inline const std::vector<VkDescriptorSetLayout>& GetDescriptorSetLayouts() { return m_DescriptorSetLayouts; }
 		inline const std::vector<VkPipelineShaderStageCreateInfo>& GetShaderCreateInfo() { return m_ShaderCreateInfo; };
 
+		static uint32_t GetTypeSize(ShaderUniformType type);
+
 	private:
 		void Init();
 		bool CompileShaders(const std::unordered_map<ShaderStage, std::string>& shaderSrc);

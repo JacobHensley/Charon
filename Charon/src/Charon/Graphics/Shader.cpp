@@ -81,24 +81,6 @@ namespace Charon {
 			return (ShaderUniformType)0;
 		}
 
-		static uint32_t GetTypeSize(ShaderUniformType type)
-		{
-			switch (type)
-			{
-				case Charon::ShaderUniformType::BOOL:   return 4;
-				case Charon::ShaderUniformType::INT:    return 4;
-				case Charon::ShaderUniformType::UINT:   return 4;
-				case Charon::ShaderUniformType::FLOAT:  return 4;
-				case Charon::ShaderUniformType::FLOAT2: return 4 * 2;
-				case Charon::ShaderUniformType::FLOAT3: return 4 * 3;
-				case Charon::ShaderUniformType::FLOAT4: return 4 * 4;
-				case Charon::ShaderUniformType::MAT4:   return 64;
-			}
-
-			CR_ASSERT(false, "Unknown Type");
-			return 0;
-		}
-
 	}
 
 	Shader::Shader(const std::string& path)
@@ -237,7 +219,7 @@ namespace Charon {
 				attribute.Name = resource.name;
 				attribute.Location = compiler.get_decoration(resource.id, spv::DecorationLocation);
 				attribute.Type = Utils::GetType(type);
-				attribute.Size = Utils::GetTypeSize(attribute.Type);
+				attribute.Size = GetTypeSize(attribute.Type);
 				attribute.Offset = offset;
 
 				offset += attribute.Size;
@@ -345,6 +327,24 @@ namespace Charon {
 			VkDescriptorSetLayout& descriptorSetLayout = m_DescriptorSetLayouts.emplace_back();
 			VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout));
 		}
+	}
+
+	uint32_t Shader::GetTypeSize(ShaderUniformType type)
+	{
+		switch (type)
+		{
+			case ShaderUniformType::BOOL:   return 4;
+			case ShaderUniformType::INT:    return 4;
+			case ShaderUniformType::UINT:   return 4;
+			case ShaderUniformType::FLOAT:  return 4;
+			case ShaderUniformType::FLOAT2: return 4 * 2;
+			case ShaderUniformType::FLOAT3: return 4 * 3;
+			case ShaderUniformType::FLOAT4: return 4 * 4;
+			case ShaderUniformType::MAT4:   return 64;
+		}
+
+		CR_ASSERT(false, "Unknown Type");
+		return 0;
 	}
 
 	std::unordered_map<ShaderStage, std::string> Shader::SplitShaders(const std::string& path)

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Renderer.h"
 #include "Charon/Core/Application.h"
+#include "Charon/Graphics/VertexBufferLayout.h"
 #include "Charon/ImGUI/imgui_impl_vulkan_with_textures.h"
 
 namespace Charon {
@@ -66,6 +67,9 @@ namespace Charon {
 		m_Shader = CreateRef<Shader>("assets/shaders/test.shader");
 		m_Pipeline = CreateRef<VulkanPipeline>(m_Shader, m_Framebuffer->GetRenderPass(), vertexInputAttributes, stride);
 
+		// -- TEST --
+		VertexBufferLayout layout(m_Shader->GetShaderAttributeDescriptions());
+		
 		CreateDescriptorPools();
 	}
 
