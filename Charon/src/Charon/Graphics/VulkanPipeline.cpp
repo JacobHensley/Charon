@@ -10,8 +10,8 @@ namespace Charon {
 		VK_DYNAMIC_STATE_LINE_WIDTH
 	};
 
-	VulkanPipeline::VulkanPipeline(Ref<Shader> shader, VkRenderPass renderPass, const std::vector<VkVertexInputAttributeDescription>& vertexAttributes, uint32_t stride)
-		: m_Shader(shader), m_RenderPass(renderPass), m_VertexAttributes(vertexAttributes), m_Stride(stride)
+	VulkanPipeline::VulkanPipeline(const PipelineSpecification& specification)
+		: m_Specification(specification)
 	{
 		Init();
 		CR_LOG_INFO("Initialized Vulkan pipeline");
@@ -27,10 +27,16 @@ namespace Charon {
 
 	void VulkanPipeline::Init()
 	{
+		// If a custom buffer layout was not supplied then use one generated from the shader
+		if (!m_Specification.Layout)
+		{
+			m_Specification.Layout = new VertexBufferLayout(m_Specification.Shader->GetShaderAttributeDescriptions());
+		}
+
 		// Set vertex attributes
 		VkVertexInputBindingDescription vertexInputBinding = {};
 		vertexInputBinding.binding = 0;
-		vertexInputBinding.stride = m_Stride;
+		vertexInputBinding.stride = m_Specification.Layout->GetStride();
 		vertexInputBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 		// Create vertex input
@@ -38,8 +44,8 @@ namespace Charon {
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		vertexInputInfo.vertexBindingDescriptionCount = 1;
 		vertexInputInfo.pVertexBindingDescriptions = &vertexInputBinding;
-		vertexInputInfo.vertexAttributeDescriptionCount = m_VertexAttributes.size();
-		vertexInputInfo.pVertexAttributeDescriptions = m_VertexAttributes.data();
+		vertexInputInfo.vertexAttributeDescriptionCount = m_Specification.Layout->GetVertexInputAttributes().size();
+		vertexInputInfo.pVertexAttributeDescriptions = m_Specification.Layout->GetVertexInputAttributes().data();
 
 		// Create input assembly
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -129,11 +135,11 @@ namespace Charon {
 		//Set push constants
 		VkPushConstantRange pushConstantRange;
 		pushConstantRange.offset = 0;
-		pushConstantRange.size = 128;
+		pushConstantRange.size = 128; // TODO: Get size from shader
 		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 		// Set pipeline layout
-		const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts = m_Shader->GetDescriptorSetLayouts();
+		const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts = m_Specification.Shader->GetDescriptorSetLayouts();
 
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -143,8 +149,6 @@ namespace Charon {
 		pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange; 
 
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout));
-
-		const std::vector<VkPipelineShaderStageCreateInfo>& shaderCreateInfo = m_Shader->GetShaderCreateInfo();
 
 		// Set depth test
 		VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
@@ -158,6 +162,8 @@ namespace Charon {
 		depthStencilState.back.compareOp = VK_COMPARE_OP_ALWAYS;
 		depthStencilState.stencilTestEnable = VK_FALSE;
 		depthStencilState.front = depthStencilState.back;
+
+		const std::vector<VkPipelineShaderStageCreateInfo>& shaderCreateInfo = m_Specification.Shader->GetShaderCreateInfo();
 
 		// Create pipeline
 		VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -173,7 +179,7 @@ namespace Charon {
 		pipelineInfo.pColorBlendState = &colorBlending;
 		pipelineInfo.pDynamicState = &dynamicState;
 		pipelineInfo.layout = m_PipelineLayout;
-		pipelineInfo.renderPass = m_RenderPass;
+		pipelineInfo.renderPass = m_Specification.TargetRenderPass;
 		pipelineInfo.subpass = 0;
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; 
 		pipelineInfo.basePipelineIndex = -1;              

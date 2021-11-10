@@ -6,6 +6,7 @@
 #include "Charon/Graphics/Buffers.h"
 #include "Charon/Graphics/Shader.h"
 #include "Charon/Graphics/VulkanPipeline.h"
+#include "Charon/Graphics/VulkanComputePipeline.h"
 
 namespace Charon {
 
@@ -67,8 +68,7 @@ namespace Charon {
         VkDescriptorSetLayout m_ComputeDescriptorSetLayout = nullptr;
         VkDescriptorSet m_ComputeDescriptorSet = nullptr;
 
-        VkPipelineLayout m_ComputePipelineLayout = nullptr;
-        VkPipeline m_ComputePipeline = nullptr;
+        Ref<VulkanComputePipeline> m_ComputePipeline;
     };
 
 }

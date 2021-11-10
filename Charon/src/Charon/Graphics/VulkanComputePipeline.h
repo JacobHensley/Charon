@@ -1,22 +1,14 @@
 #pragma once
 #include "Charon/Graphics/Shader.h"
-#include "Charon/Graphics/VertexBufferLayout.h"
 #include <vulkan/vulkan.h>
 
 namespace Charon {
 
-	struct PipelineSpecification
-	{
-		Ref<Shader> Shader = nullptr;
-		VertexBufferLayout* Layout = nullptr;
-		VkRenderPass TargetRenderPass = nullptr;
-	};
-
-	class VulkanPipeline
+	class VulkanComputePipeline
 	{
 	public:
-		VulkanPipeline(const PipelineSpecification& specification);
-		~VulkanPipeline();
+		VulkanComputePipeline(Ref<Shader> Shader);
+		~VulkanComputePipeline();
 
 	public:
 		inline VkPipeline GetPipeline() { return m_Pipeline; }
@@ -26,10 +18,10 @@ namespace Charon {
 		void Init();
 
 	private:
-		PipelineSpecification m_Specification;
-
 		VkPipeline m_Pipeline = nullptr;
 		VkPipelineLayout m_PipelineLayout = nullptr;
+
+		Ref<Shader> m_Shader;
 	};
 
 }

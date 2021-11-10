@@ -41,29 +41,30 @@ namespace Charon {
 		auto renderer = Application::GetApp().GetRenderer();
 		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
 
+		// NOTE: Changed to VK_SHADER_STAGE_ALL due to the Shader not having the correct info
 		// Set storage buffer binding
 		std::array<VkDescriptorSetLayoutBinding, 4> setLayoutBindings;
 		setLayoutBindings[0] = {};
 		setLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		setLayoutBindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		setLayoutBindings[0].stageFlags = VK_SHADER_STAGE_ALL;
 		setLayoutBindings[0].binding = 0;
 		setLayoutBindings[0].descriptorCount = 1;
 
 		setLayoutBindings[1] = {};
 		setLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		setLayoutBindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		setLayoutBindings[1].stageFlags = VK_SHADER_STAGE_ALL;
 		setLayoutBindings[1].binding = 1;
 		setLayoutBindings[1].descriptorCount = 1;
 
 		setLayoutBindings[2] = {};
 		setLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		setLayoutBindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		setLayoutBindings[2].stageFlags = VK_SHADER_STAGE_ALL;
 		setLayoutBindings[2].binding = 2;
 		setLayoutBindings[2].descriptorCount = 1;
 
 		setLayoutBindings[3] = {};
 		setLayoutBindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		setLayoutBindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		setLayoutBindings[3].stageFlags = VK_SHADER_STAGE_ALL;
 		setLayoutBindings[3].binding = 3;
 		setLayoutBindings[3].descriptorCount = 1;
 
@@ -74,13 +75,7 @@ namespace Charon {
 
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, nullptr, &m_ComputeDescriptorSetLayout));
 
-		// Create PipelineLayout
-		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
-		pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipelineLayoutCreateInfo.setLayoutCount = 1;
-		pipelineLayoutCreateInfo.pSetLayouts = &m_ComputeDescriptorSetLayout;
-
-		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &m_ComputePipelineLayout));
+		m_ComputePipeline = CreateRef<VulkanComputePipeline>(m_ComputeShader);
 
 		// Create DescriptorSet
 		VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{};
@@ -116,13 +111,6 @@ namespace Charon {
 		cameraWriteDescriptor.pBufferInfo = &renderer->GetCameraUB()->getDescriptorBufferInfo();
 		cameraWriteDescriptor.descriptorCount = 1;
 
-		// Create ComputePipeline with layer and compute shader
-		VkComputePipelineCreateInfo computePipelineCreateInfo{};
-		computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-		computePipelineCreateInfo.layout = m_ComputePipelineLayout;
-		computePipelineCreateInfo.stage = m_ComputeShader->GetShaderCreateInfo()[0];
-		VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &m_ComputePipeline));
-
 		// Create IndexBuffer with predefined indices
 		m_Indices = new uint16_t[m_MaxIndices];
 		uint32_t offset = 0;
@@ -143,45 +131,25 @@ namespace Charon {
 
 		// Create shader and pipeline used to draw particles
 		Ref<SwapChain> swapChain = Application::GetApp().GetVulkanSwapChain();
-		
-		std::vector<VkVertexInputAttributeDescription> vertexInputAttributes(4);
+	
+		m_Shader = CreateRef<Shader>("assets/shaders/particle.shader");
 
-		// Vertex 0: Position
-		vertexInputAttributes[0].binding = 0;
-		vertexInputAttributes[0].location = 0;
-		vertexInputAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		vertexInputAttributes[0].offset = offsetof(ParticleVertex, Position);
-
-		// Vertex 1: Color
-		vertexInputAttributes[1].binding = 0;
-		vertexInputAttributes[1].location = 1;
-		vertexInputAttributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		vertexInputAttributes[1].offset = offsetof(ParticleVertex, Color);
-
-		// Vertex 2: Velocity (for compute)
-		vertexInputAttributes[2].binding = 0;
-		vertexInputAttributes[2].location = 2;
-		vertexInputAttributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-		vertexInputAttributes[2].offset = offsetof(ParticleVertex, Velocity);
-
-		// Vertex 2: Velocity (for compute)
-		vertexInputAttributes[3].binding = 0;
-		vertexInputAttributes[3].location = 3;
-		vertexInputAttributes[3].format = VK_FORMAT_R32_SFLOAT;
-		vertexInputAttributes[3].offset = offsetof(ParticleVertex, RemainingLifetime);
-
-		// -- TEST --
-		VertexBufferLayout layout({
+		// NOTE: I don't know why smart pointers are not working here
+		VertexBufferLayout* layout = new VertexBufferLayout({
 			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Position) },
 			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Color) },
 			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Velocity) },
 			{ ShaderUniformType::FLOAT,  offsetof(ParticleVertex, RemainingLifetime) },
 		});
 
-		uint32_t stride = sizeof(ParticleVertex);
+		PipelineSpecification pipelineSpec;
+		pipelineSpec.Shader = m_Shader;
+		pipelineSpec.TargetRenderPass = renderer->GetFramebuffer()->GetRenderPass();
+		pipelineSpec.Layout = layout;
+	
+		m_Pipeline = CreateRef<VulkanPipeline>(pipelineSpec);
 
-		m_Shader = CreateRef<Shader>("assets/shaders/particle.shader");
-		m_Pipeline = CreateRef<VulkanPipeline>(m_Shader, renderer->GetFramebuffer()->GetRenderPass(), vertexInputAttributes, stride);
+		delete layout;
 	}
 
 	void ParticleLayer::OnUpdate()
@@ -223,8 +191,8 @@ namespace Charon {
 		vkUpdateDescriptorSets(device->GetLogicalDevice(), m_ComputeWriteDescriptors.size(), m_ComputeWriteDescriptors.data(), 0, NULL);
 
 		// Bind the Compute Pipeline and the DescriptorSet and then dispach the compute shader
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ComputePipeline);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ComputePipelineLayout, 0, 1, &m_ComputeDescriptorSet, 0, 0);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ComputePipeline->GetPipeline());
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ComputePipeline->GetPipelineLayout(), 0, 1, &m_ComputeDescriptorSet, 0, 0);
 		vkCmdDispatch(commandBuffer, 1, 1, 1);
 
 		// Flush the command buffer and free it (waits for compute shader to finish)

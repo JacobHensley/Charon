@@ -28,47 +28,19 @@ namespace Charon {
 	{
 		Ref<SwapChain> swapChain = Application::GetApp().GetVulkanSwapChain();
 
-		FramebufferSpecification spec;
-		spec.AttachmentFormats = { VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_D24_UNORM_S8_UINT };
-		spec.Width = 1280;
-		spec.Height = 720;
-		m_Framebuffer = CreateRef<Framebuffer>(spec);
-
 		m_CameraUniformBuffer = CreateRef<UniformBuffer>(nullptr, sizeof(CameraBuffer));
-
-		std::vector<VkVertexInputAttributeDescription> vertexInputAttributes(4);
-
-		// Vertex 0: Position
-		vertexInputAttributes[0].binding = 0;
-		vertexInputAttributes[0].location = 0;
-		vertexInputAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		vertexInputAttributes[0].offset = 0;
-
-		// Vertex 1: Normal
-		vertexInputAttributes[1].binding = 0;
-		vertexInputAttributes[1].location = 1;
-		vertexInputAttributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		vertexInputAttributes[1].offset = 12;
-
-		// Vertex 2: Tangent
-		vertexInputAttributes[2].binding = 0;
-		vertexInputAttributes[2].location = 2;
-		vertexInputAttributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-		vertexInputAttributes[2].offset = 24;
-
-		// Vertex 3: TextureCoords
-		vertexInputAttributes[3].binding = 0;
-		vertexInputAttributes[3].location = 3;
-		vertexInputAttributes[3].format = VK_FORMAT_R32G32_SFLOAT;
-		vertexInputAttributes[3].offset = 36;
-
-		uint32_t stride = sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec3) + sizeof(glm::vec2);
-
 		m_Shader = CreateRef<Shader>("assets/shaders/test.shader");
-		m_Pipeline = CreateRef<VulkanPipeline>(m_Shader, m_Framebuffer->GetRenderPass(), vertexInputAttributes, stride);
 
-		// -- TEST --
-		VertexBufferLayout layout(m_Shader->GetShaderAttributeDescriptions());
+		FramebufferSpecification framebufferSpec;
+		framebufferSpec.AttachmentFormats = { VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_D24_UNORM_S8_UINT };
+		framebufferSpec.Width = 1280;
+		framebufferSpec.Height = 720;
+		m_Framebuffer = CreateRef<Framebuffer>(framebufferSpec);
+
+		PipelineSpecification pipelineSpec;
+		pipelineSpec.Shader = m_Shader;
+		pipelineSpec.TargetRenderPass = m_Framebuffer->GetRenderPass();
+		m_Pipeline = CreateRef<VulkanPipeline>(pipelineSpec);
 		
 		CreateDescriptorPools();
 	}
