@@ -2,7 +2,6 @@
 #include "Charon/Core/Application.h"
 #include "Charon/Graphics/Renderer.h"
 #include "Charon/Graphics/SceneRenderer.h"
-#include "Charon/Graphics/VertexBufferLayout.h"
 #include <glm/gtc/type_ptr.hpp>
 #include "Charon/ImGui/imgui_impl_vulkan_with_textures.h"
 #include "imgui/imgui.h"
@@ -26,187 +25,173 @@ namespace Charon {
 		m_MaxQauds = 1025;
 		m_MaxIndices = m_MaxQauds * 6;
 
-		// TODO: change vertex size
-		m_StorageBuffer = CreateRef<StorageBuffer>(sizeof(Vertex) * 4 * m_MaxQauds);
+		m_ParticleBuffer = CreateRef<StorageBuffer>(sizeof(Particle) * m_MaxQauds);
+		m_ParticleVertexBuffer = CreateRef<StorageBuffer>(sizeof(ParticleVertex) * 4 * m_MaxQauds);
+		m_CounterBuffer = CreateRef<StorageBuffer>(sizeof(CounterBuffer));
+
+		m_Emitter.MaxParticles = 1025;
+		m_Emitter.EmissionQuantity = 5;
+		m_Emitter.EmitterPosition = glm::vec3(0);
+		m_Emitter.EmitterDirection = glm::normalize(glm::vec3(-1.0f, -1.0f, 0.0f));
+
+		m_EmitterUniformBuffer = CreateRef<UniformBuffer>(&m_Emitter, sizeof(Emitter));
+
 		m_ComputeShader = CreateRef<Shader>("assets/shaders/compute.shader");
-		m_CounterBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t));
-
-		m_ParticleUB.MaxParticles = 1025;
-		m_ParticleUB.EmissionQuantity = 5;
-		m_ParticleUB.EmitterPosition = glm::vec3(0);
-		m_ParticleUB.EmitterDirectionVariation = glm::vec3(glm::radians(20.0f), glm::radians(20.0f), glm::radians(20.0f));
-		m_ParticleUB.EmitterDirection = glm::normalize(glm::vec3(-1.0f, -1.0f, 0.0f));
-		m_ParticleUniformBuffer = CreateRef<UniformBuffer>(&m_ParticleUB, sizeof(ParticleUB));
-
-		auto renderer = Application::GetApp().GetRenderer();
-		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
-
-		// NOTE: Changed to VK_SHADER_STAGE_ALL due to the Shader not having the correct info
-		// Set storage buffer binding
-		std::array<VkDescriptorSetLayoutBinding, 4> setLayoutBindings;
-		setLayoutBindings[0] = {};
-		setLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		setLayoutBindings[0].stageFlags = VK_SHADER_STAGE_ALL;
-		setLayoutBindings[0].binding = 0;
-		setLayoutBindings[0].descriptorCount = 1;
-
-		setLayoutBindings[1] = {};
-		setLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		setLayoutBindings[1].stageFlags = VK_SHADER_STAGE_ALL;
-		setLayoutBindings[1].binding = 1;
-		setLayoutBindings[1].descriptorCount = 1;
-
-		setLayoutBindings[2] = {};
-		setLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		setLayoutBindings[2].stageFlags = VK_SHADER_STAGE_ALL;
-		setLayoutBindings[2].binding = 2;
-		setLayoutBindings[2].descriptorCount = 1;
-
-		setLayoutBindings[3] = {};
-		setLayoutBindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		setLayoutBindings[3].stageFlags = VK_SHADER_STAGE_ALL;
-		setLayoutBindings[3].binding = 3;
-		setLayoutBindings[3].descriptorCount = 1;
-
-		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
-		descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		descriptorSetLayoutCreateInfo.pBindings = setLayoutBindings.data();
-		descriptorSetLayoutCreateInfo.bindingCount = setLayoutBindings.size();
-
-		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, nullptr, &m_ComputeDescriptorSetLayout));
-
 		m_ComputePipeline = CreateRef<VulkanComputePipeline>(m_ComputeShader);
 
-		// Create DescriptorSet
-		VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{};
-		descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		descriptorSetAllocateInfo.pSetLayouts = &m_ComputeDescriptorSetLayout;
-		descriptorSetAllocateInfo.descriptorSetCount = 1;
+		m_ParticleShader = CreateRef<Shader>("assets/shaders/particle.shader");
 
-		VkWriteDescriptorSet& sbWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
-		sbWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		sbWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		sbWriteDescriptor.dstBinding = 0;
-		sbWriteDescriptor.pBufferInfo = &m_StorageBuffer->getDescriptorBufferInfo();
-		sbWriteDescriptor.descriptorCount = 1;
+		auto renderer = Application::GetApp().GetRenderer();
 
-		VkWriteDescriptorSet& ubWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
-		ubWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		ubWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		ubWriteDescriptor.dstBinding = 1;
-		ubWriteDescriptor.pBufferInfo = &m_ParticleUniformBuffer->getDescriptorBufferInfo();
-		ubWriteDescriptor.descriptorCount = 1;
+		VertexBufferLayout* layout = new VertexBufferLayout({
+			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Position) },
+		});
 
-		VkWriteDescriptorSet& counterBufferWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
-		counterBufferWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		counterBufferWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		counterBufferWriteDescriptor.dstBinding = 2;
-		counterBufferWriteDescriptor.pBufferInfo = &m_CounterBuffer->getDescriptorBufferInfo();
-		counterBufferWriteDescriptor.descriptorCount = 1;
+		// TODO: Fix incorrect stride calculation for structs
+		layout->SetStride(layout->GetStride() + sizeof(float));
 
-		VkWriteDescriptorSet& cameraWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
-		cameraWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		cameraWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		cameraWriteDescriptor.dstBinding = 3;
-		cameraWriteDescriptor.pBufferInfo = &renderer->GetCameraUB()->getDescriptorBufferInfo();
-		cameraWriteDescriptor.descriptorCount = 1;
+		PipelineSpecification pipelineSpec;
+		pipelineSpec.Shader = m_ParticleShader;
+		pipelineSpec.TargetRenderPass = renderer->GetFramebuffer()->GetRenderPass();
+		pipelineSpec.Layout = layout;
 
-		// Create IndexBuffer with predefined indices
-		m_Indices = new uint16_t[m_MaxIndices];
+		m_Pipeline = CreateRef<VulkanPipeline>(pipelineSpec);
+
+		delete layout;
+
+		uint32_t* indices = new uint32_t[m_MaxIndices];
 		uint32_t offset = 0;
 		for (uint32_t i = 0; i < m_MaxIndices; i += 6)
 		{
-			m_Indices[i + 0] = offset + 0;
-			m_Indices[i + 1] = offset + 1;
-			m_Indices[i + 2] = offset + 2;
+			indices[i + 0] = offset + 0;
+			indices[i + 1] = offset + 1;
+			indices[i + 2] = offset + 2;
 
-			m_Indices[i + 3] = offset + 2;
-			m_Indices[i + 4] = offset + 3;
-			m_Indices[i + 5] = offset + 0;
+			indices[i + 3] = offset + 2;
+			indices[i + 4] = offset + 3;
+			indices[i + 5] = offset + 0;
 
 			offset += 4;
 		}
 
-		m_IndexBuffer = CreateRef<IndexBuffer>(m_Indices, sizeof(uint16_t) * m_MaxIndices, m_MaxIndices);
+		m_IndexBuffer = CreateRef<IndexBuffer>(indices, sizeof(uint32_t) * m_MaxIndices, m_MaxIndices);
+		delete indices;
 
-		// Create shader and pipeline used to draw particles
-		Ref<SwapChain> swapChain = Application::GetApp().GetVulkanSwapChain();
-	
-		m_Shader = CreateRef<Shader>("assets/shaders/particle.shader");
+		// TODO: Auto generate write descriptors -- Move to shader?
+		{
+			VkWriteDescriptorSet& particleWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
+			particleWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			particleWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			particleWriteDescriptor.dstBinding = 0;
+			particleWriteDescriptor.pBufferInfo = &m_ParticleBuffer->getDescriptorBufferInfo();
+			particleWriteDescriptor.descriptorCount = 1;
 
-		// NOTE: I don't know why smart pointers are not working here
-		VertexBufferLayout* layout = new VertexBufferLayout({
-			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Position) },
-			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Color) },
-			{ ShaderUniformType::FLOAT3, offsetof(ParticleVertex, Velocity) },
-			{ ShaderUniformType::FLOAT,  offsetof(ParticleVertex, RemainingLifetime) },
-		});
+			VkWriteDescriptorSet& particleVertexWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
+			particleVertexWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			particleVertexWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			particleVertexWriteDescriptor.dstBinding = 1;
+			particleVertexWriteDescriptor.pBufferInfo = &m_ParticleVertexBuffer->getDescriptorBufferInfo();
+			particleVertexWriteDescriptor.descriptorCount = 1;
 
-		PipelineSpecification pipelineSpec;
-		pipelineSpec.Shader = m_Shader;
-		pipelineSpec.TargetRenderPass = renderer->GetFramebuffer()->GetRenderPass();
-		pipelineSpec.Layout = layout;
-	
-		m_Pipeline = CreateRef<VulkanPipeline>(pipelineSpec);
+			VkWriteDescriptorSet& emitterWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
+			emitterWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			emitterWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			emitterWriteDescriptor.dstBinding = 2;
+			emitterWriteDescriptor.pBufferInfo = &m_EmitterUniformBuffer->getDescriptorBufferInfo();
+			emitterWriteDescriptor.descriptorCount = 1;
 
-		delete layout;
+			VkWriteDescriptorSet& counterBufferWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
+			counterBufferWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			counterBufferWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			counterBufferWriteDescriptor.dstBinding = 3;
+			counterBufferWriteDescriptor.pBufferInfo = &m_CounterBuffer->getDescriptorBufferInfo();
+			counterBufferWriteDescriptor.descriptorCount = 1;
+
+			VkWriteDescriptorSet& cameraWriteDescriptor = m_ComputeWriteDescriptors.emplace_back();
+			cameraWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			cameraWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			cameraWriteDescriptor.dstBinding = 4;
+			cameraWriteDescriptor.pBufferInfo = &renderer->GetCameraUB()->getDescriptorBufferInfo();
+			cameraWriteDescriptor.descriptorCount = 1;
+		}
+
+		{
+			VkWriteDescriptorSet& particleWriteDescriptor = m_ParticleWriteDescriptors.emplace_back();
+			particleWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			particleWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			particleWriteDescriptor.dstBinding = 0;
+			particleWriteDescriptor.pBufferInfo = &m_ParticleBuffer->getDescriptorBufferInfo();
+			particleWriteDescriptor.descriptorCount = 1;
+
+			VkWriteDescriptorSet& cameraWriteDescriptor = m_ParticleWriteDescriptors.emplace_back();
+			cameraWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			cameraWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			cameraWriteDescriptor.dstBinding = 1;
+			cameraWriteDescriptor.pBufferInfo = &renderer->GetCameraUB()->getDescriptorBufferInfo();
+			cameraWriteDescriptor.descriptorCount = 1;
+		}
+
 	}
 
 	void ParticleLayer::OnUpdate()
 	{
 		m_Camera->Update();
 
-		m_ParticleUB.Time = Application::GetApp().GetGlobalTime();
-		m_ParticleUniformBuffer->UpdateBuffer(&m_ParticleUB);
-
-
-		if (m_ParticleUB.ParticleCount < m_ParticleUB.MaxParticles)
-		{
-			m_ParticleUB.ParticleCount += m_ParticleUB.EmissionQuantity;
-		}
-		else
-		{
-			m_ParticleUB.EmissionQuantity = 0;
-		}
-		std::cout << m_ParticleUB.ParticleCount << std::endl;
+		m_Emitter.Time = Application::GetApp().GetGlobalTime();
+		m_Emitter.DeltaTime = Application::GetApp().GetDeltaTime();
+		m_EmitterUniformBuffer->UpdateBuffer(&m_Emitter);
 
 		auto renderer = Application::GetApp().GetRenderer();
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
 
-		// Create command buffer from device on the grapics queue and start recording
+		// TODO: Auto update descriptors -- Move to shader?
+		{
+			VkDescriptorSetAllocateInfo computeDescriptorSetAllocateInfo{};
+			computeDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			computeDescriptorSetAllocateInfo.pSetLayouts = m_ComputeShader->GetDescriptorSetLayouts().data();
+			computeDescriptorSetAllocateInfo.descriptorSetCount = m_ComputeShader->GetDescriptorSetLayouts().size();
+
+			m_ComputeDescriptorSet = renderer->AllocateDescriptorSet(computeDescriptorSetAllocateInfo);
+
+			for (auto& wd : m_ComputeWriteDescriptors)
+				wd.dstSet = m_ComputeDescriptorSet;
+
+			vkUpdateDescriptorSets(device->GetLogicalDevice(), m_ComputeWriteDescriptors.size(), m_ComputeWriteDescriptors.data(), 0, NULL);
+		}
+
 		// TODO: Move to compute queue
 		VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-		
-		// Re-Allocate DescriptorSet
-		VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{};
-		descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		descriptorSetAllocateInfo.pSetLayouts = &m_ComputeDescriptorSetLayout;
-		descriptorSetAllocateInfo.descriptorSetCount = 1;
 
-		m_ComputeDescriptorSet = renderer->AllocateDescriptorSet(descriptorSetAllocateInfo);
-
-		for (auto& wd : m_ComputeWriteDescriptors)
-			wd.dstSet = m_ComputeDescriptorSet;
-
-		vkUpdateDescriptorSets(device->GetLogicalDevice(), m_ComputeWriteDescriptors.size(), m_ComputeWriteDescriptors.data(), 0, NULL);
-
-		// Bind the Compute Pipeline and the DescriptorSet and then dispach the compute shader
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ComputePipeline->GetPipeline());
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ComputePipeline->GetPipelineLayout(), 0, 1, &m_ComputeDescriptorSet, 0, 0);
 		vkCmdDispatch(commandBuffer, 1, 1, 1);
 
-		// Flush the command buffer and free it (waits for compute shader to finish)
 		device->FlushCommandBuffer(commandBuffer, true);
 
-		m_ParticleUB.ParticleCount = *m_CounterBuffer->Map<uint32_t>();
+		m_ParticleCount = *m_CounterBuffer->Map<uint32_t>();
 		m_CounterBuffer->Unmap();
-		std::cout << "Particle Count: " << m_ParticleUB.ParticleCount << std::endl;
 	}
 
 	void ParticleLayer::OnRender()
 	{
 		auto renderer = Application::GetApp().GetRenderer();
+		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
 		VkCommandBuffer commandBuffer = renderer->GetActiveCommandBuffer();
+		
+		// Why does moving this code into update cause it to break
+		{
+			VkDescriptorSetAllocateInfo particleDescriptorSetAllocateInfo{};
+			particleDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			particleDescriptorSetAllocateInfo.pSetLayouts = m_ParticleShader->GetDescriptorSetLayouts().data();
+			particleDescriptorSetAllocateInfo.descriptorSetCount = m_ParticleShader->GetDescriptorSetLayouts().size();
+
+			m_ParticleDescriptorSet = renderer->AllocateDescriptorSet(particleDescriptorSetAllocateInfo);
+
+			for (auto& wd : m_ParticleWriteDescriptors)
+				wd.dstSet = m_ParticleDescriptorSet;
+
+			vkUpdateDescriptorSets(device->GetLogicalDevice(), m_ParticleWriteDescriptors.size(), m_ParticleWriteDescriptors.data(), 0, NULL);
+		}
 
 		renderer->BeginScene(m_Camera);
 		renderer->BeginRenderPass(renderer->GetFramebuffer());
@@ -214,14 +199,12 @@ namespace Charon {
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipeline());
 
 		VkDeviceSize offset = 0;
-		VkBuffer vertexBuffer = m_StorageBuffer->GetBuffer();
+		VkBuffer vertexBuffer = m_ParticleVertexBuffer->GetBuffer();
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &offset);
-		vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer->GetBuffer(), 0, VK_INDEX_TYPE_UINT16);
-		glm::mat4 dummyTransform = glm::mat4(1.0f);
-		vkCmdPushConstants(commandBuffer, m_Pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &dummyTransform);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, renderer->GetDescriptorSets().size(), renderer->GetDescriptorSets().data(), 0, nullptr);
 
-		vkCmdDrawIndexed(commandBuffer, m_ParticleUB.ParticleCount * 6, 1, 0, 0, 0);
+		vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);;
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, 1, &m_ParticleDescriptorSet, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, m_ParticleCount * 6, 1, 0, 0, 0);
 
 		renderer->EndRenderPass();
 
@@ -247,5 +230,6 @@ namespace Charon {
 
 		ImGui::End();
 	}
+
 
 }

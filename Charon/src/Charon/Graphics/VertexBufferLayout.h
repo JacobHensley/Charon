@@ -17,6 +17,7 @@ namespace Charon {
 
 		inline const std::vector<VkVertexInputAttributeDescription>& GetVertexInputAttributes() { return m_VertexInputAttributes; }
 		inline uint32_t GetStride() { return m_Stride; }
+		inline void SetStride(uint32_t stride) { m_Stride = stride; }
 
 	private:
 		std::vector<ShaderAttribute> m_Attributes;

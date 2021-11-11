@@ -2,13 +2,45 @@
 #include "Charon/Core/Layer.h"
 #include "Charon/Core/Core.h"
 #include "Charon/Graphics/Camera.h"
-#include "Charon/Graphics/Mesh.h"
-#include "Charon/Graphics/Buffers.h"
-#include "Charon/Graphics/Shader.h"
-#include "Charon/Graphics/VulkanPipeline.h"
 #include "Charon/Graphics/VulkanComputePipeline.h"
+#include "Charon/Graphics/VulkanPipeline.h"
+#include "Charon/Graphics/Buffers.h"
 
 namespace Charon {
+
+    struct Particle
+    {
+        glm::vec3 Position;
+        float Padding0;
+        glm::vec3 Color;
+        float Padding1;
+        glm::vec3 Velocity;
+        float RemainingLifetime;
+    };
+
+    struct ParticleVertex
+    {
+        glm::vec3 Position;
+        float Padding0;
+    };
+
+    struct CounterBuffer
+    {
+        float m_ParticleCount;
+    };
+
+    struct Emitter
+    {
+        glm::vec3 EmitterPosition;
+        float Padding0;
+        glm::vec3 EmitterDirection;
+        uint32_t EmissionQuantity;
+        uint32_t MaxParticles;
+
+        // Move to renderer buffer
+        float Time;
+        float DeltaTime;
+    };
 
     class ParticleLayer : public Layer
     {
@@ -26,49 +58,31 @@ namespace Charon {
     private:
         Ref<Camera> m_Camera;
 
-        uint32_t m_MaxQauds;
-        uint32_t m_MaxIndices;
-
-        struct ParticleVertex
-        {
-            glm::vec3 Position;
-            float Padding0;
-            glm::vec3 Color;
-            float Padding1;
-			glm::vec3 Velocity;
-			float RemainingLifetime;
-        };
-
-        Ref<StorageBuffer> m_StorageBuffer;
-        Ref<StorageBuffer> m_CounterBuffer;
-
-        struct ParticleUB
-        {
-			glm::vec3 EmitterPosition;
-            float Padding0;
-			glm::vec3 EmitterDirection;
-			float Padding1;
-			glm::vec3 EmitterDirectionVariation;
-			uint32_t EmissionQuantity; // how many new particles to emit
-			uint32_t MaxParticles;
-			uint32_t ParticleCount = 0;
-			float Time;
-        } m_ParticleUB;
-        Ref<UniformBuffer> m_ParticleUniformBuffer;
-        Ref<IndexBuffer> m_IndexBuffer;
+        Ref<VulkanComputePipeline> m_ComputePipeline;
         Ref<Shader> m_ComputeShader;
-        Ref<VulkanPipeline> m_Pipeline;
-        Ref<Shader> m_Shader;
 
+        Ref<VulkanPipeline> m_Pipeline;
+        Ref<Shader> m_ParticleShader;
+
+        Ref<StorageBuffer> m_ParticleBuffer;
+        Ref<StorageBuffer> m_ParticleVertexBuffer;
+        Ref<StorageBuffer> m_CounterBuffer;
+        Ref<UniformBuffer> m_EmitterUniformBuffer;
+        Ref<IndexBuffer> m_IndexBuffer;
+
+        Emitter m_Emitter;
+
+        uint32_t m_MaxQauds = 0;
+        uint32_t m_MaxIndices = 0;
+
+        uint32_t m_ParticleCount = 0;
+
+        VkDescriptorSet m_ComputeDescriptorSet = nullptr;
         std::vector<VkWriteDescriptorSet> m_ComputeWriteDescriptors;
 
-        Vertex* m_Vertices = nullptr;
-        uint16_t* m_Indices = nullptr;
-
-        VkDescriptorSetLayout m_ComputeDescriptorSetLayout = nullptr;
-        VkDescriptorSet m_ComputeDescriptorSet = nullptr;
-
-        Ref<VulkanComputePipeline> m_ComputePipeline;
+        VkDescriptorSet m_ParticleDescriptorSet = nullptr;
+        std::vector<VkWriteDescriptorSet> m_ParticleWriteDescriptors;
+        
     };
 
 }
