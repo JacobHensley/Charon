@@ -29,10 +29,19 @@ namespace Charon {
 		m_ParticleVertexBuffer = CreateRef<StorageBuffer>(sizeof(ParticleVertex) * 4 * m_MaxQauds);
 		m_CounterBuffer = CreateRef<StorageBuffer>(sizeof(CounterBuffer));
 
+		m_Emitter.Position = glm::vec3(0.0f);
+		m_Emitter.Direction = normalize(glm::vec3(0.0f, 1.0f, 0.0f));
+		m_Emitter.DirectionrRandomness = 1.0f;
+		m_Emitter.VelocityRandomness = 0.0025f;
+		m_Emitter.Gravity = 0.005f;
 		m_Emitter.MaxParticles = 1025;
-		m_Emitter.EmissionQuantity = 5;
-		m_Emitter.EmitterPosition = glm::vec3(0);
-		m_Emitter.EmitterDirection = glm::normalize(glm::vec3(-1.0f, -1.0f, 0.0f));
+		m_Emitter.EmissionRate = 100.0f;
+
+		m_Emitter.InitialRotation = glm::vec3(0.0f);
+		m_Emitter.InitialScale = glm::vec3(1.0f);
+		m_Emitter.InitialLifetime = 5.0f;
+		m_Emitter.InitialSpeed = 5.0f;
+		m_Emitter.InitialColor = glm::vec3(1.0f, 0.0f, 0.0f);
 
 		m_EmitterUniformBuffer = CreateRef<UniformBuffer>(&m_Emitter, sizeof(Emitter));
 
@@ -217,6 +226,22 @@ namespace Charon {
 
 	void ParticleLayer::OnImGUIRender()
 	{
+		ImGui::Begin("Emitter Settings");
+
+		ImGui::DragFloat3("Position", glm::value_ptr(m_Emitter.Position));
+		ImGui::DragFloat3("Direction", glm::value_ptr(m_Emitter.Direction));
+		m_Emitter.Direction = normalize(m_Emitter.Direction);
+		ImGui::DragFloat("Directionr Randomness", &m_Emitter.DirectionrRandomness);
+		ImGui::DragFloat("Velocity Randomness", &m_Emitter.VelocityRandomness);
+		ImGui::DragFloat("Gravity", &m_Emitter.Gravity);
+		ImGui::DragFloat("Emission Rate", &m_Emitter.EmissionRate);
+		ImGui::DragFloat3("Initial Rotation", glm::value_ptr(m_Emitter.InitialRotation));
+		ImGui::DragFloat3("Initial Scale", glm::value_ptr(m_Emitter.InitialScale));
+		ImGui::DragFloat("Initial Lifetime", &m_Emitter.InitialLifetime);
+		ImGui::DragFloat("Initial Speed", &m_Emitter.InitialSpeed);
+		ImGui::ColorEdit3("Initial Color", glm::value_ptr(m_Emitter.InitialColor));
+
+		ImGui::End();
 		ImGui::Begin("Viewport");
 
 		auto& descriptorInfo = SceneRenderer::GetFinalBuffer()->GetImage(0)->GetDescriptorImageInfo();

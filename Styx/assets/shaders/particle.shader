@@ -8,6 +8,10 @@ layout(location = 0) out vec3 v_Color;
 struct Particle
 {
     vec3 Position;
+    float Lifetime;
+    vec3 Rotation;
+    float Speed;
+    vec3 Scale;
     vec3 Color;
     vec3 Velocity;
 };

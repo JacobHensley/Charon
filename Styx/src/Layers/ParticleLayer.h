@@ -11,11 +11,15 @@ namespace Charon {
     struct Particle
     {
         glm::vec3 Position;
-        float Padding0;
+        float Lifetime;
+        glm::vec3 Rotation;
+        float Speed;
+        glm::vec3 Scale;
+        float padding0;
         glm::vec3 Color;
-        float Padding1;
+        float padding1;
         glm::vec3 Velocity;
-        float RemainingLifetime;
+        float padding2;
     };
 
     struct ParticleVertex
@@ -26,18 +30,24 @@ namespace Charon {
 
     struct CounterBuffer
     {
-        float m_ParticleCount;
+        float AliveParticleCount;
+        float TimeSinceLastEmit;
     };
 
     struct Emitter
     {
-        glm::vec3 EmitterPosition;
-        float Padding0;
-        glm::vec3 EmitterDirection;
-        uint32_t EmissionQuantity;
+        glm::vec3 InitialRotation;
+        float InitialLifetime;
+        glm::vec3 InitialScale;
+        float InitialSpeed;
+        glm::vec3 InitialColor;
+        float Gravity;
+        glm::vec3 Position;
+        float EmissionRate;
+        glm::vec3 Direction;
         uint32_t MaxParticles;
-
-        // Move to renderer buffer
+        float DirectionrRandomness;
+        float VelocityRandomness;
         float Time;
         float DeltaTime;
     };

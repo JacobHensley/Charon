@@ -28,6 +28,7 @@ IncludeDir["imgui"]             = "Charon/vendor/imgui"
 IncludeDir["stb_image"]         = "Charon/vendor/stb"
 IncludeDir["yamlCPP"] 			= "Charon/vendor/yaml-cpp/include"
 IncludeDir["EnTT"] 				= "Charon/vendor/entt/single_include"
+IncludeDir["NVIDIA_Aftermath"]  = "Charon/vendor/NVIDIA-Aftermath/include"
 
 include "Charon/vendor/GLFW"
 include "Charon/vendor/SPIRV-Cross"
@@ -74,6 +75,7 @@ project "Charon"
 		"%{IncludeDir.stb_image}",
 		"%{IncludeDir.yamlCPP}",
 		"%{IncludeDir.EnTT}",
+		"%{IncludeDir.NVIDIA_Aftermath}",
 	}
 
 	filter "system:windows"
@@ -119,6 +121,7 @@ project "Styx"
 		"%{IncludeDir.stb_image}",
 		"%{IncludeDir.yamlCPP}",
 		"%{IncludeDir.EnTT}",
+		"%{IncludeDir.NVIDIA_Aftermath}",
 	}
 
 	links 
@@ -128,6 +131,7 @@ project "Styx"
 		"SPIRV-Cross",
 		"imgui",
 		"yaml-cpp",
+		"Charon/vendor/NVIDIA-Aftermath/lib/x64/GFSDK_Aftermath_Lib.x64.lib",
 		VK_SDK_PATH .. "/Lib/vulkan-1.lib",
 		VK_SDK_PATH .. "/Lib/shaderc_shared.lib",
 	}

@@ -9,9 +9,12 @@ struct Vertex
 struct Particle
 {
 	vec3 Position;
+	float Lifetime;
+	vec3 Rotation;
+	float Speed;
+	vec3 Scale;
 	vec3 Color;
 	vec3 Velocity;
-	float RemainingLifetime;
 };
 
 layout(std140, binding = 0) buffer ParticleBuffer
@@ -26,10 +29,18 @@ layout(std140, binding = 1) buffer VertexBuffer
 
 layout(std140, binding = 2) uniform ParticleEmitter
 {
-	vec3 EmitterPosition;
-	vec3 EmitterDirection;
-	uint EmissionQuantity;
+	vec3 InitialRotation;
+	float InitialLifetime;
+	vec3 InitialScale;
+	float InitialSpeed;
+	vec3 InitialColor;
+	float Gravity;
+	vec3 Position;
+	float EmissionRate; // Particles to emit per second
+	vec3 Direction;
 	uint MaxParticles;
+	float DirectionrRandomness;
+	float VelocityRandomness;
 
 	// Move to renderer UB
 	float Time;
@@ -39,6 +50,7 @@ layout(std140, binding = 2) uniform ParticleEmitter
 layout(std140, binding = 3) buffer CounterBuffer
 {
 	uint ParticleCount;
+	float TimeSinceLastEmit;
 };
 
 layout(binding = 4) uniform CameraBuffer
@@ -48,49 +60,51 @@ layout(binding = 4) uniform CameraBuffer
 	mat4 View;
 } u_CameraBuffer;
 
-vec3 hash31(float p)
+// returns a random float in range (0, 1). seed must be >0!
+float rand(inout float seed, in vec2 uv)
 {
-	vec3 p3 = fract(vec3(p) * vec3(.1031, .1030, .0973));
-	p3 += dot(p3, p3.yzx + 33.33);
-	return fract((p3.xxy + p3.yzz) * p3.zyx);
+	float result = fract(sin(seed * dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
+	seed += 1;
+	return result;
 }
 
-vec3 RandomVec3()
+void SetQuadPosition(uint index, vec3 position, float scale)
 {
-	return hash31(u_Emitter.Time + gl_GlobalInvocationID.x);
-}
-
-vec3 RandomVec3(float offset)
-{
-	return hash31(u_Emitter.Time + gl_GlobalInvocationID.x + offset);
-}
-
-void SetQuadPosition(uint index, vec3 position)
-{
-	vertices[index * 4 + 0].Position = position + vec3(-0.5, -0.5, 0.0);
-	vertices[index * 4 + 1].Position = position + vec3( 0.5, -0.5, 0.0);
-	vertices[index * 4 + 2].Position = position + vec3( 0.5,  0.5, 0.0);
-	vertices[index * 4 + 3].Position = position + vec3(-0.5,  0.5, 0.0);
+	vertices[index * 4 + 0].Position = position + vec3(-0.5, -0.5, 0.0) * scale;
+	vertices[index * 4 + 1].Position = position + vec3( 0.5, -0.5, 0.0) * scale;
+	vertices[index * 4 + 2].Position = position + vec3( 0.5,  0.5, 0.0) * scale;
+	vertices[index * 4 + 3].Position = position + vec3(-0.5,  0.5, 0.0) * scale;
 }
 
 bool IsParticleDead(uint index)
 {
-	return particles[index].RemainingLifetime <= 0.0f;
+	return particles[index].Lifetime <= 0.0f;
 }
 
 void EmitParticle(uint index, Particle particle)
 {
 	particles[index] = particle;
-	SetQuadPosition(index, particle.Position);
+	SetQuadPosition(index, particle.Position, u_Emitter.InitialScale.x);
 	ParticleCount = ParticleCount + 1;
+	TimeSinceLastEmit = 0.0f;
 }
 
 void UpdateParticle(uint index)
 {
-	particles[index].Position += particles[index].Velocity;
-	particles[index].RemainingLifetime -= u_Emitter.DeltaTime;
-	particles[index].Color = vec3(particles[index].RemainingLifetime) / 5.0f;
-	SetQuadPosition(index, particles[index].Position);
+	vec2 uv = vec2(u_Emitter.DeltaTime, float(index) / 256.0f);
+	float seed = 0.12345;
+
+	vec3 randomVector = vec3(rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f);
+	vec3 candidate = normalize(randomVector) * 5.0f + u_Emitter.Direction;
+//  particles[index].Velocity += candidate * 0.00005f;
+
+	particles[index].Velocity += randomVector * u_Emitter.VelocityRandomness;
+	particles[index].Velocity.y -= u_Emitter.Gravity;
+	particles[index].Position += particles[index].Velocity * u_Emitter.DeltaTime;
+	particles[index].Lifetime -= u_Emitter.DeltaTime;
+//	particles[index].Scale.x = particles[index].Lifetime / u_Emitter.InitialLifetime;
+	particles[index].Color = vec3(particles[index].Lifetime);
+	SetQuadPosition(index, particles[index].Position, particles[index].Scale.x);
 }
 
 layout(local_size_x = 1) in;
@@ -98,17 +112,25 @@ void main()
 {
 	uint particleIndex = gl_GlobalInvocationID.x;
 
-	for (uint i = 0; i < u_Emitter.EmissionQuantity; i++)
+	vec2 uv = vec2(u_Emitter.DeltaTime, float(particleIndex) / 256.0f);
+	float seed = 0.12345;
+
+	TimeSinceLastEmit += u_Emitter.DeltaTime;
+
+	for (uint i = 0; i < u_Emitter.EmissionRate; i++)
 	{
-		if (ParticleCount <= u_Emitter.MaxParticles - 1)
+		if (ParticleCount < u_Emitter.MaxParticles && TimeSinceLastEmit >= 1 / u_Emitter.EmissionRate)
 		{	
-			uint index = i + ParticleCount - u_Emitter.EmissionQuantity;
+			uint index = i + ParticleCount;
 
 			Particle particle;
-			particle.Color = vec3(1.0f);
-			particle.Position = vec3(0.0f);
-			particle.Velocity = RandomVec3(index) * 0.001f;
-			particle.RemainingLifetime = 5.0f;
+			particle.Position = u_Emitter.Position;
+			particle.Lifetime = u_Emitter.InitialLifetime * rand(seed, uv);
+			particle.Rotation = u_Emitter.InitialRotation;
+			particle.Speed = u_Emitter.InitialSpeed;
+			particle.Scale = u_Emitter.InitialScale;
+			particle.Color = u_Emitter.InitialColor;
+			particle.Velocity = (u_Emitter.Direction * u_Emitter.InitialSpeed) + vec3(rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f) * u_Emitter.DirectionrRandomness;
 
 			EmitParticle(index, particle);
 		}
@@ -129,5 +151,5 @@ void main()
 
 			ParticleCount = ParticleCount - 1;
 		}
-	}
+	} 
 }
