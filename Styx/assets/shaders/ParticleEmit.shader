@@ -70,7 +70,7 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	vec3 InitialColor;
 	float Gravity;
 	vec3 Position;
-	float EmissionRate;
+	uint EmissionQuantity;
 	vec3 Direction;
 	uint MaxParticles;
 	float DirectionrRandomness;
@@ -106,7 +106,7 @@ void main()
 {
 	uint particleIndex = gl_GlobalInvocationID.x;
 
-	if (particleIndex < u_CounterBuffer.RealEmitCount)
+	if (particleIndex < 256)
 	{
 		vec2 uv = vec2(u_Emitter.DeltaTime, float(particleIndex) / float(THREADCOUNT_EMIT));
 		float seed = 0.12345;
@@ -122,14 +122,14 @@ void main()
 		particle.Velocity = (u_Emitter.Direction * u_Emitter.InitialSpeed) + vec3(rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f) * u_Emitter.DirectionrRandomness;
 
 		// new particle index retrieved from dead list (pop):
-		uint deadCount = atomicCounterDecrement(u_CounterBuffer.DeadCount);
-		uint newParticleIndex = u_DeadBuffer[deadCount - 1];
+		uint deadCount = uint(atomicAdd(u_CounterBuffer.DeadCount, -1));
+		uint newParticleIndex = u_DeadBuffer.Indices[deadCount - 1];
 
 		// write out the new particle:
-		u_ParticleBuffer[newParticleIndex] = particle;
+		u_ParticleBuffer.particles[newParticleIndex] = particle;
 
 		// and add index to the alive list (push):
-		uint aliveCount = atomicCounterIncrement(u_CounterBuffer.AliveCount);
-		u_AliveBufferPreSimulate[aliveCount] = newParticleIndex;
+		uint aliveCount = atomicAdd(u_CounterBuffer.AliveCount, 1);
+		u_AliveBufferPreSimulate.Indices[aliveCount] = newParticleIndex;
 	}
 }

@@ -70,7 +70,7 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	vec3 InitialColor;
 	float Gravity;
 	vec3 Position;
-	float EmissionRate;
+	uint EmissionQuantity;
 	vec3 Direction;
 	uint MaxParticles;
 	float DirectionrRandomness;
@@ -108,8 +108,8 @@ void main()
 
 	if (invocationID < u_CounterBuffer.AliveCount)
 	{
-		uint particleIndex = u_AliveBufferPreSimulate[invocationID];
-		Particle particle = u_ParticleBuffer[particleIndex];
+		uint particleIndex = u_AliveBufferPreSimulate.Indices[invocationID];
+		Particle particle = u_ParticleBuffer.particles[particleIndex];
 		uint v0 = particleIndex * 4;
 
 		if (particle.Lifetime > 0)
@@ -117,35 +117,35 @@ void main()
 			// TODO: -----> Simulate Here <-----
 
 			// write back simulated particle:
-			u_ParticleBuffer[particleIndex] = particle;
+			u_ParticleBuffer.particles[particleIndex] = particle;
 
 			// add to new alive list:
-			uint newAliveIndex = atomicCounterIncrement(u_CounterBuffer.AliveCount_AfterSimulation);
-			u_AliveBufferPostSimulate[newAliveIndex] = particleIndex;
+			uint newAliveIndex = atomicAdd(u_CounterBuffer.AliveCount_AfterSimulation, 1);
+			u_AliveBufferPostSimulate.Indices[newAliveIndex] = particleIndex;
 
 			// Write out render buffers:
 			// These must be persistent, not culled (raytracing, surfels...)
 
-			for (uint vertexID = 0; vertexID < 4; ++vertexID)
+		//	for (uint vertexID = 0; vertexID < 4; ++vertexID)
 			{
 				// write out vertex:
-				vertices[(v0 + vertexID)].Position = particle.position + vec3(-0.5, -0.5, 0.0);
-				vertices[(v0 + vertexID)].Position = particle.position + vec3(0.5, -0.5, 0.0);
-				vertices[(v0 + vertexID)].Position = particle.position + vec3(0.5, 0.5, 0.0);
-				vertices[(v0 + vertexID)].Position = particle.position + vec3(-0.5, 0.5, 0.0);
+				u_VertexBuffer.vertices[(v0 + 0)].Position = particle.Position + vec3(-0.5, -0.5, 0.0);
+				u_VertexBuffer.vertices[(v0 + 1)].Position = particle.Position + vec3(0.5, -0.5, 0.0);
+				u_VertexBuffer.vertices[(v0 + 2)].Position = particle.Position + vec3(0.5, 0.5, 0.0);
+				u_VertexBuffer.vertices[(v0 + 3)].Position = particle.Position + vec3(-0.5, 0.5, 0.0);
 			}
 
 		}
 		else
 		{
 			// kill:
-			uint deadIndex = atomicCounterIncrement(u_CounterBuffer.DeadCount);
-			u_DeadBuffer[deadIndex] = particleIndex;
+			uint deadIndex = atomicAdd(u_CounterBuffer.DeadCount, 1);
+			u_DeadBuffer.Indices[deadIndex] = particleIndex;
 
-			u_VertexBuffer[(v0 + 0)] = 0;
-			u_VertexBuffer[(v0 + 1)] = 0;
-			u_VertexBuffer[(v0 + 2)] = 0;
-			u_VertexBuffer[(v0 + 3)] = 0;
+			u_VertexBuffer.vertices[(v0 + 0)].Position = vec3(0);
+			u_VertexBuffer.vertices[(v0 + 1)].Position = vec3(0);
+			u_VertexBuffer.vertices[(v0 + 2)].Position = vec3(0);
+			u_VertexBuffer.vertices[(v0 + 3)].Position = vec3(0);
 		}
 	}
 

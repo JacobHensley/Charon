@@ -70,7 +70,7 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	vec3 InitialColor;
 	float Gravity;
 	vec3 Position;
-	float EmissionRate;
+	uint EmissionQuantity;
 	vec3 Direction;
 	uint MaxParticles;
 	float DirectionrRandomness;
@@ -104,6 +104,8 @@ const uint THREADCOUNT_SIMULATION = 256;
 layout(local_size_x = 1) in;
 void main()
 {
+	u_CounterBuffer.DeadCount = 1000000;
+
 	// we can not emit more than there are free slots in the dead list:
 	uint realEmitCount = min(u_CounterBuffer.DeadCount, u_Emitter.EmissionQuantity);
 

@@ -70,7 +70,7 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	vec3 InitialColor;
 	float Gravity;
 	vec3 Position;
-	float EmissionRate;
+	uint EmissionQuantity;
 	vec3 Direction;
 	uint MaxParticles;
 	float DirectionrRandomness;

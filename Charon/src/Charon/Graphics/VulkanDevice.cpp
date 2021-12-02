@@ -4,9 +4,9 @@
 #include "Charon/Core/Application.h"
 #include "Charon/Graphics/VulkanTools.h"
 
-static const std::vector<const char*> s_DeviceExtensions = 
+static const std::vector<const char*> s_DeviceExtensions =
 {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME
 };
 
 namespace Charon {
@@ -55,6 +55,9 @@ namespace Charon {
 
 		CR_ASSERT(m_PhysicalDevice != VK_NULL_HANDLE, "Could not find any suitable device");
 
+		VkPhysicalDeviceFeatures f;
+		vkGetPhysicalDeviceFeatures(m_PhysicalDevice, &f);
+
 		// Create info for all queues
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 		std::set<uint32_t> uniqueQueueFamilies = { indices.GraphicsQueue.value(), indices.PresentQueue.value(), indices.TransferQueue.value() };
@@ -72,9 +75,14 @@ namespace Charon {
 		// Required device features
 		VkPhysicalDeviceFeatures deviceFeatures{};
 
+		VkPhysicalDeviceVulkan12Features v12Features = {};
+		v12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+		v12Features.shaderBufferInt64Atomics = true;
+
 		// Logical device info
 		VkDeviceCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		createInfo.pNext = &v12Features;
 		createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 		createInfo.pQueueCreateInfos = queueCreateInfos.data();
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(s_DeviceExtensions.size());

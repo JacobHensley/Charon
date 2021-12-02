@@ -43,7 +43,7 @@ namespace Charon {
         glm::vec3 InitialColor;
         float Gravity;
         glm::vec3 Position;
-        float EmissionRate;
+        uint32_t EmissionQuantity;
         glm::vec3 Direction;
         uint32_t MaxParticles;
         float DirectionrRandomness;
@@ -51,6 +51,21 @@ namespace Charon {
         float Time;
         float DeltaTime;
     };
+
+    struct NewCounterBuffer
+    {
+		uint32_t AliveCount;
+		uint32_t DeadCount;
+		uint32_t RealEmitCount;
+		uint32_t AliveCount_AfterSimulation;
+    };
+
+	struct IndirectDrawBuffer
+	{
+		glm::uvec3 DispatchEmit;
+		glm::uvec3 DispatchSimulation;
+        glm::uvec4 DrawParticles;
+	};
 
     class ParticleLayer : public Layer
     {
@@ -79,6 +94,33 @@ namespace Charon {
         Ref<StorageBuffer> m_CounterBuffer;
         Ref<UniformBuffer> m_EmitterUniformBuffer;
         Ref<IndexBuffer> m_IndexBuffer;
+        
+        Ref<Shader> m_ShaderParticleBegin;
+        Ref<Shader> m_ShaderParticleEmit;
+        Ref<Shader> m_ShaderParticleSimulate;
+        Ref<Shader> m_ShaderParticleEnd;
+
+        struct ParticlePipelines
+        {
+            Ref<VulkanComputePipeline> Begin;
+            Ref<VulkanComputePipeline> Emit;
+            Ref<VulkanComputePipeline> Simulate;
+            Ref<VulkanComputePipeline> End;
+
+        } m_ParticlePipelines;
+
+        struct ParticleBuffers
+        {
+            Ref<StorageBuffer> AliveBufferPreSimulate;
+            Ref<StorageBuffer> AliveBufferPostSimulate;
+            Ref<StorageBuffer> DeadBuffer;
+            Ref<StorageBuffer> CounterBuffer;
+            Ref<StorageBuffer> IndirectDrawBuffer;
+            Ref<UniformBuffer> ParticleUniformEmitter;
+        } m_ParticleBuffers;
+        
+        VkDescriptorSet m_NewParticleDescriptorSet = nullptr;
+        std::vector<VkWriteDescriptorSet> m_NewParticleWriteDescriptors;
 
         Emitter m_Emitter;
 
@@ -86,6 +128,8 @@ namespace Charon {
         uint32_t m_MaxIndices = 0;
 
         uint32_t m_ParticleCount = 0;
+
+        uint32_t m_MaxParticles = 1000000;
 
         VkDescriptorSet m_ComputeDescriptorSet = nullptr;
         std::vector<VkWriteDescriptorSet> m_ComputeWriteDescriptors;
