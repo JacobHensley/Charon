@@ -47,6 +47,20 @@ namespace Charon {
 		allocator.UnmapMemory(m_BufferInfo.Allocation);
 	}
 
+	IndexBuffer::IndexBuffer(uint32_t size, uint32_t count)
+		: m_Count(count)
+	{
+		// Create buffer info
+		VkBufferCreateInfo vertexBufferCreateInfo = {};
+		vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		vertexBufferCreateInfo.size = size;
+		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+		// Allocate memory
+		VulkanAllocator allocator("IndexBuffer");
+		m_BufferInfo.Allocation = allocator.AllocateBuffer(vertexBufferCreateInfo, VMA_MEMORY_USAGE_CPU_TO_GPU, m_BufferInfo.Buffer);
+	}
+
 	IndexBuffer::~IndexBuffer()
 	{
 		VulkanAllocator allocator("IndexBuffer");

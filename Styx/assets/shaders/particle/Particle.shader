@@ -21,14 +21,14 @@ layout(std430, binding = 0) buffer ParticleBuffer
     Particle particles[];
 };
 
-layout(set = 0, binding = 1) uniform CameraBuffer
+layout(set = 0, binding = 2) uniform CameraBuffer
 {
     mat4 ViewProjection;
     mat4 InverseViewProjection;
     mat4 View;
 } u_CameraBuffer;
 
-layout(std430, binding = 2) buffer AliveBufferPostSimulate
+layout(std430, binding = 1) buffer AliveBufferPostSimulate
 {
     uint Indices[];
 } u_AliveBufferPostSimulate;

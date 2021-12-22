@@ -30,8 +30,10 @@ namespace Charon {
 
     struct CounterBuffer
     {
-        float AliveParticleCount;
-        float TimeSinceLastEmit;
+        uint32_t AliveCount = 0;
+        uint32_t DeadCount = 0;
+        uint32_t RealEmitCount = 0;
+        uint32_t AliveCount_AfterSimulation = 0;
     };
 
     struct Emitter
@@ -51,15 +53,6 @@ namespace Charon {
         float Time;
         float DeltaTime;
     };
-
-    struct NewCounterBuffer
-    {
-		uint32_t AliveCount = 0;
-		uint32_t DeadCount = 0;
-		uint32_t RealEmitCount = 0;
-		uint32_t AliveCount_AfterSimulation = 0;
-    };
-
 
 	struct IndirectDrawBuffer
 	{
@@ -86,19 +79,27 @@ namespace Charon {
 
     private:
         Ref<Camera> m_Camera;
+        Emitter m_Emitter;
 
-        Ref<VulkanPipeline> m_Pipeline;
+        inline static uint32_t m_MaxParticles = 1'000'000;
+        inline static uint32_t m_MaxIndices = m_MaxParticles * 6;
+
+        Ref<VulkanPipeline> m_ParticleRendererPipeline;
         Ref<Shader> m_ParticleShader;
 
-        Ref<StorageBuffer> m_ParticleBuffer;
-        Ref<StorageBuffer> m_ParticleVertexBuffer;
-        Ref<UniformBuffer> m_EmitterUniformBuffer;
-        Ref<IndexBuffer> m_IndexBuffer;
-        
-        Ref<Shader> m_ShaderParticleBegin;
-        Ref<Shader> m_ShaderParticleEmit;
-        Ref<Shader> m_ShaderParticleSimulate;
-        Ref<Shader> m_ShaderParticleEnd;
+        VkDescriptorSet m_ParticleRendererDescriptorSet = nullptr;
+        std::vector<VkWriteDescriptorSet> m_ParticleRendererWriteDescriptors;
+
+        VkDescriptorSet m_ParticleSimulationDescriptorSet = nullptr;
+        std::vector<VkWriteDescriptorSet> m_ParticleSimulationWriteDescriptors;
+
+        struct ParticleShaders
+        {
+            Ref<Shader> Begin;
+            Ref<Shader> Emit;
+            Ref<Shader> Simulate;
+            Ref<Shader> End;
+        } m_ParticleShaders;
 
         struct ParticlePipelines
         {
@@ -111,38 +112,16 @@ namespace Charon {
 
         struct ParticleBuffers
         {
+            Ref<StorageBuffer> ParticleBuffer;
+            Ref<UniformBuffer> EmitterBuffer;
             Ref<StorageBuffer> AliveBufferPreSimulate;
             Ref<StorageBuffer> AliveBufferPostSimulate;
             Ref<StorageBuffer> DeadBuffer;
             Ref<StorageBuffer> CounterBuffer;
             Ref<StorageBuffer> IndirectDrawBuffer;
-            Ref<UniformBuffer> ParticleUniformEmitter;
+            Ref<StorageBuffer> VertexBuffer;
+            Ref<IndexBuffer> IndexBuffer;
         } m_ParticleBuffers;
-        
-        VkDescriptorSet m_NewParticleDescriptorSet = nullptr;
-        std::vector<VkWriteDescriptorSet> m_NewParticleWriteDescriptors;
-
-        Emitter m_Emitter;
-
-        uint32_t m_MaxIndices = 0;
-
-        uint32_t m_ParticleCount = 0;
-
-        inline static uint32_t m_MaxParticles = 1'000'000;
-
-        VkDescriptorSet m_ParticleDescriptorSet = nullptr;
-        std::vector<VkWriteDescriptorSet> m_ParticleWriteDescriptors;
-
-		struct DebugBuffers
-		{
-            NewCounterBuffer m_NewCounterBuffer{};
-			IndirectDrawBuffer m_IndirectDrawBuffer{};
-            uint32_t* m_DeadBuffer = new uint32_t[m_MaxParticles];
-		} m_DebugBuffers[4];
-
-        void DrawParticleBuffers(int index);
-
-        bool m_NextFrame = false;
     };
 
 }

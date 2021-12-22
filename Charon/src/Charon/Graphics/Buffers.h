@@ -74,11 +74,25 @@ namespace Charon {
 	{
 	public:
 		IndexBuffer(void* indexData, uint32_t size, uint32_t count);
+		IndexBuffer(uint32_t size, uint32_t count);
 		~IndexBuffer();
 
 	public:
 		VkBuffer GetBuffer() { return m_BufferInfo.Buffer; }
 		uint32_t GetCount() { return m_Count; }
+
+		template<typename T>
+		T* Map()
+		{
+			VulkanAllocator allocator("IndexBuffer");
+			return allocator.MapMemory<T>(m_BufferInfo.Allocation);
+		}
+
+		void Unmap()
+		{
+			VulkanAllocator allocator("IndexBuffer");
+			return allocator.UnmapMemory(m_BufferInfo.Allocation);
+		}
 
 	private:
 		BufferInfo m_BufferInfo;
@@ -101,13 +115,13 @@ namespace Charon {
 		template<typename T>
 		void* Map()
 		{
-			VulkanAllocator allocator("StorageBuffer");
+			VulkanAllocator allocator("UniformBuffer");
 			return allocator.MapMemory<T>(m_BufferInfo.Allocation);
 		}
 
 		void Unmap()
 		{
-			VulkanAllocator allocator("StorageBuffer");
+			VulkanAllocator allocator("UniformBuffer");
 			return allocator.UnmapMemory(m_BufferInfo.Allocation);
 		}
 	private:
