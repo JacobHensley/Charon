@@ -10,6 +10,51 @@ namespace Charon {
 		VmaAllocation Allocation = nullptr;
 	};
 
+	template<typename T, typename BufferType>
+	class ScopedMap
+	{
+	public:
+		ScopedMap(std::shared_ptr<BufferType> buffer)
+			: m_Buffer(buffer)
+		{
+			m_MappedData = m_Buffer->Map<T>();
+		}
+
+		~ScopedMap()
+		{
+			m_Buffer->Unmap();
+		}
+
+		T& operator*()
+		{
+			return *m_MappedData;
+		}
+
+		const T& operator*() const
+		{
+			return *m_MappedData;
+		}
+
+		T* operator->()
+		{
+			return m_MappedData;
+		}
+
+		T& operator[](size_t index)
+		{
+			return m_MappedData[index];
+		}
+
+		const T* operator->() const
+		{
+			return m_MappedData;
+		}
+	private:
+		std::shared_ptr<BufferType> m_Buffer;
+		T* m_MappedData;
+
+	};
+
 	// Vertex Buffer
 	class VertexBuffer
 	{
@@ -75,7 +120,7 @@ namespace Charon {
 	class StorageBuffer
 	{
 	public:
-		StorageBuffer(uint32_t size, bool cpu = false);
+		StorageBuffer(uint32_t size, bool cpu = false, bool vertex = false);
 		~StorageBuffer();
 
 	public:

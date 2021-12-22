@@ -16,7 +16,7 @@ struct Particle
     vec3 Velocity;
 };
 
-layout(std140, binding = 0) buffer ParticleBuffer
+layout(std430, binding = 0) buffer ParticleBuffer
 {
     Particle particles[];
 };
@@ -28,12 +28,27 @@ layout(set = 0, binding = 1) uniform CameraBuffer
     mat4 View;
 } u_CameraBuffer;
 
+layout(std430, binding = 2) buffer AliveBufferPostSimulate
+{
+    uint Indices[];
+} u_AliveBufferPostSimulate;
+
+const vec3 c_Vertices[4] = vec3[4](
+    vec3(-0.5f, -0.5f, 0.0f),
+    vec3( 0.5f, -0.5f, 0.0f),
+    vec3( 0.5f,  0.5f, 0.0f),
+    vec3(-0.5f,  0.5f, 0.0f)
+);
+
 void main()
 {
-    gl_Position = u_CameraBuffer.ViewProjection * vec4(a_Position, 1.0);
-    int vertex = int(gl_VertexIndex * 0.25f);
-    v_Color = particles[vertex].Color;
-//    v_Color = vec3(1.0f, 1.0f, 1.0f);
+    //gl_Position = u_CameraBuffer.ViewProjection * vec4(a_Position, 1.0);
+
+    uint particleIndex = u_AliveBufferPostSimulate.Indices[gl_VertexIndex / 4];
+    Particle particle = particles[particleIndex];
+    v_Color = particle.Color;
+
+    gl_Position = u_CameraBuffer.ViewProjection * vec4(particle.Position + c_Vertices[gl_VertexIndex % 4] * particle.Scale, 1.0);
 }
 
 #Shader Fragment

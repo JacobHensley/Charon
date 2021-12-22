@@ -89,13 +89,15 @@ namespace Charon {
 		allocator.UnmapMemory(m_BufferInfo.Allocation);
 	}
 
-	StorageBuffer::StorageBuffer(uint32_t size, bool cpu)
+	StorageBuffer::StorageBuffer(uint32_t size, bool cpu, bool vertex)
 	{
 		// Create buffer info
 		VkBufferCreateInfo vertexBufferCreateInfo = {};
 		vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		vertexBufferCreateInfo.size = size;
-		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+		if (vertex)
+			vertexBufferCreateInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
 		// Allocate memory
 		VulkanAllocator allocator("StorageBuffer");

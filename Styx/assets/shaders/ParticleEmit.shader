@@ -21,22 +21,22 @@ struct Particle
 	vec3 Velocity;
 };
 
-layout(std140, binding = 0) buffer ParticleBuffer
+layout(std430, binding = 0) buffer ParticleBuffer
 {
 	Particle particles[];
 } u_ParticleBuffer;
 
-layout(std140, binding = 1) buffer AliveBufferPreSimulate
+layout(std430, binding = 1) buffer AliveBufferPreSimulate
 {
 	uint Indices[];
 } u_AliveBufferPreSimulate;
 
-layout(std140, binding = 2) buffer AliveBufferPostSimulate
+layout(std430, binding = 2) buffer AliveBufferPostSimulate
 {
 	uint Indices[];
 } u_AliveBufferPostSimulate;
 
-layout(std140, binding = 3) buffer DeadBuffer
+layout(std430, binding = 3) buffer DeadBuffer
 {
 	uint Indices[];
 } u_DeadBuffer;
@@ -59,6 +59,7 @@ layout(std140, binding = 6) buffer IndirectDrawBuffer
 	uvec3 DispatchEmit;
 	uvec3 DispatchSimulation;
 	uvec4 DrawParticles;
+	uint FirstInstance;
 } u_IndirectDrawBuffer;
 
 layout(std140, binding = 7) uniform ParticleEmitter
@@ -106,23 +107,24 @@ void main()
 {
 	uint particleIndex = gl_GlobalInvocationID.x;
 
-	if (particleIndex < 256)
+	if (particleIndex < u_CounterBuffer.RealEmitCount)
 	{
-		vec2 uv = vec2(u_Emitter.DeltaTime, float(particleIndex) / float(THREADCOUNT_EMIT));
+		vec2 uv = vec2(u_Emitter.Time, float(particleIndex) / float(THREADCOUNT_EMIT));
 		float seed = 0.12345;
 
 		// create new particle:
 		Particle particle;
 		particle.Position = u_Emitter.Position;
-		particle.Lifetime = u_Emitter.InitialLifetime;
+		particle.Lifetime = u_Emitter.InitialLifetime * rand(seed, uv) + 1.0;
 		particle.Rotation = u_Emitter.InitialRotation;
 		particle.Speed = u_Emitter.InitialSpeed;
-		particle.Scale = u_Emitter.InitialScale;
-		particle.Color = u_Emitter.InitialColor;
+		particle.Scale = u_Emitter.InitialScale * rand(seed, uv);
+		particle.Color = vec3(rand(seed, uv), rand(seed, uv), rand(seed, uv));
 		particle.Velocity = (u_Emitter.Direction * u_Emitter.InitialSpeed) + vec3(rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f) * u_Emitter.DirectionrRandomness;
 
 		// new particle index retrieved from dead list (pop):
 		uint deadCount = uint(atomicAdd(u_CounterBuffer.DeadCount, -1));
+		// 1000
 		uint newParticleIndex = u_DeadBuffer.Indices[deadCount - 1];
 
 		// write out the new particle:

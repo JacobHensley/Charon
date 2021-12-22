@@ -21,22 +21,22 @@ struct Particle
 	vec3 Velocity;
 };
 
-layout(std140, binding = 0) buffer ParticleBuffer
+layout(std430, binding = 0) buffer ParticleBuffer
 {
 	Particle particles[];
 } u_ParticleBuffer;
 
-layout(std140, binding = 1) buffer AliveBufferPreSimulate
+layout(std430, binding = 1) buffer AliveBufferPreSimulate
 {
 	uint Indices[];
 } u_AliveBufferPreSimulate;
 
-layout(std140, binding = 2) buffer AliveBufferPostSimulate
+layout(std430, binding = 2) buffer AliveBufferPostSimulate
 {
 	uint Indices[];
 } u_AliveBufferPostSimulate;
 
-layout(std140, binding = 3) buffer DeadBuffer
+layout(std430, binding = 3) buffer DeadBuffer
 {
 	uint Indices[];
 } u_DeadBuffer;
@@ -59,6 +59,7 @@ layout(std140, binding = 6) buffer IndirectDrawBuffer
 	uvec3 DispatchEmit;
 	uvec3 DispatchSimulation;
 	uvec4 DrawParticles;
+	uint FirstInstance;
 } u_IndirectDrawBuffer;
 
 layout(std140, binding = 7) uniform ParticleEmitter
@@ -104,8 +105,6 @@ const uint THREADCOUNT_SIMULATION = 256;
 layout(local_size_x = 1) in;
 void main()
 {
-	u_CounterBuffer.DeadCount = 1000000;
-
 	// we can not emit more than there are free slots in the dead list:
 	uint realEmitCount = min(u_CounterBuffer.DeadCount, u_Emitter.EmissionQuantity);
 
@@ -115,7 +114,7 @@ void main()
 	// Fill dispatch argument buffer for simulation (ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ):
 	u_IndirectDrawBuffer.DispatchSimulation = uvec3(ceil(float(u_CounterBuffer.AliveCount_AfterSimulation + realEmitCount) / float(THREADCOUNT_SIMULATION)), 1, 1);
 
-	// copy new alivelistcount to current alivelistcount:
+	// copy new alivelistcount to current alivelistcount: (from previous frame)
 	u_CounterBuffer.AliveCount = u_CounterBuffer.AliveCount_AfterSimulation;
 
 	// reset new alivecount:

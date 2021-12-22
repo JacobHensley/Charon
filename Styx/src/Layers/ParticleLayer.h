@@ -54,17 +54,21 @@ namespace Charon {
 
     struct NewCounterBuffer
     {
-		uint32_t AliveCount;
-		uint32_t DeadCount;
-		uint32_t RealEmitCount;
-		uint32_t AliveCount_AfterSimulation;
+		uint32_t AliveCount = 0;
+		uint32_t DeadCount = 0;
+		uint32_t RealEmitCount = 0;
+		uint32_t AliveCount_AfterSimulation = 0;
     };
+
 
 	struct IndirectDrawBuffer
 	{
-		glm::uvec3 DispatchEmit;
-		glm::uvec3 DispatchSimulation;
-        glm::uvec4 DrawParticles;
+        glm::uvec3 DispatchEmit{ 0,0,0 };
+        uint32_t Padding0;
+		glm::uvec3 DispatchSimulation{ 0,0,0 };
+        uint32_t Padding1;
+        glm::uvec4 DrawParticles{ 0,0,0,0 };
+        uint32_t FirstInstance = 0;
 	};
 
     class ParticleLayer : public Layer
@@ -83,15 +87,11 @@ namespace Charon {
     private:
         Ref<Camera> m_Camera;
 
-        Ref<VulkanComputePipeline> m_ComputePipeline;
-        Ref<Shader> m_ComputeShader;
-
         Ref<VulkanPipeline> m_Pipeline;
         Ref<Shader> m_ParticleShader;
 
         Ref<StorageBuffer> m_ParticleBuffer;
         Ref<StorageBuffer> m_ParticleVertexBuffer;
-        Ref<StorageBuffer> m_CounterBuffer;
         Ref<UniformBuffer> m_EmitterUniformBuffer;
         Ref<IndexBuffer> m_IndexBuffer;
         
@@ -124,19 +124,25 @@ namespace Charon {
 
         Emitter m_Emitter;
 
-        uint32_t m_MaxQauds = 0;
         uint32_t m_MaxIndices = 0;
 
         uint32_t m_ParticleCount = 0;
 
-        uint32_t m_MaxParticles = 1000000;
-
-        VkDescriptorSet m_ComputeDescriptorSet = nullptr;
-        std::vector<VkWriteDescriptorSet> m_ComputeWriteDescriptors;
+        inline static uint32_t m_MaxParticles = 1'000'000;
 
         VkDescriptorSet m_ParticleDescriptorSet = nullptr;
         std::vector<VkWriteDescriptorSet> m_ParticleWriteDescriptors;
-        
+
+		struct DebugBuffers
+		{
+            NewCounterBuffer m_NewCounterBuffer{};
+			IndirectDrawBuffer m_IndirectDrawBuffer{};
+            uint32_t* m_DeadBuffer = new uint32_t[m_MaxParticles];
+		} m_DebugBuffers[4];
+
+        void DrawParticleBuffers(int index);
+
+        bool m_NextFrame = false;
     };
 
 }

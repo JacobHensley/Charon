@@ -8,6 +8,7 @@
 struct Vertex
 {
 	vec3 Position;
+	float Padding;
 };
 
 struct Particle
@@ -21,22 +22,22 @@ struct Particle
 	vec3 Velocity;
 };
 
-layout(std140, binding = 0) buffer ParticleBuffer
+layout(std430, binding = 0) buffer ParticleBuffer
 {
 	Particle particles[];
 } u_ParticleBuffer;
 
-layout(std140, binding = 1) buffer AliveBufferPreSimulate
+layout(std430, binding = 1) buffer AliveBufferPreSimulate
 {
 	uint Indices[];
 } u_AliveBufferPreSimulate;
 
-layout(std140, binding = 2) buffer AliveBufferPostSimulate
+layout(std430, binding = 2) buffer AliveBufferPostSimulate
 {
 	uint Indices[];
 } u_AliveBufferPostSimulate;
 
-layout(std140, binding = 3) buffer DeadBuffer
+layout(std430, binding = 3) buffer DeadBuffer
 {
 	uint Indices[];
 } u_DeadBuffer;
@@ -59,6 +60,7 @@ layout(std140, binding = 6) buffer IndirectDrawBuffer
 	uvec3 DispatchEmit;
 	uvec3 DispatchSimulation;
 	uvec4 DrawParticles;
+	uint FirstInstance;
 } u_IndirectDrawBuffer;
 
 layout(std140, binding = 7) uniform ParticleEmitter
@@ -116,6 +118,12 @@ void main()
 		{
 			// TODO: -----> Simulate Here <-----
 
+			particle.Lifetime -= u_Emitter.DeltaTime;
+			particle.Position += particle.Velocity * u_Emitter.DeltaTime;
+			particle.Scale -= u_Emitter.DeltaTime*0.5;
+			particle.Scale = max(particle.Scale, vec3(0.0));
+			particle.Velocity.y -= u_Emitter.DeltaTime * 6.0;
+			
 			// write back simulated particle:
 			u_ParticleBuffer.particles[particleIndex] = particle;
 
@@ -142,10 +150,10 @@ void main()
 			uint deadIndex = atomicAdd(u_CounterBuffer.DeadCount, 1);
 			u_DeadBuffer.Indices[deadIndex] = particleIndex;
 
-			u_VertexBuffer.vertices[(v0 + 0)].Position = vec3(0);
-			u_VertexBuffer.vertices[(v0 + 1)].Position = vec3(0);
-			u_VertexBuffer.vertices[(v0 + 2)].Position = vec3(0);
-			u_VertexBuffer.vertices[(v0 + 3)].Position = vec3(0);
+			u_VertexBuffer.vertices[(v0 + 0)].Position = vec3(-5);
+			u_VertexBuffer.vertices[(v0 + 1)].Position = vec3(-5);
+			u_VertexBuffer.vertices[(v0 + 2)].Position = vec3(-5);
+			u_VertexBuffer.vertices[(v0 + 3)].Position = vec3(-5);
 		}
 	}
 

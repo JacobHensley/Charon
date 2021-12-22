@@ -21,22 +21,22 @@ struct Particle
 	vec3 Velocity;
 };
 
-layout(std140, binding = 0) buffer ParticleBuffer
+layout(std430, binding = 0) buffer ParticleBuffer
 {
 	Particle particles[];
 } u_ParticleBuffer;
 
-layout(std140, binding = 1) buffer AliveBufferPreSimulate
+layout(std430, binding = 1) buffer AliveBufferPreSimulate
 {
 	uint Indices[];
 } u_AliveBufferPreSimulate;
 
-layout(std140, binding = 2) buffer AliveBufferPostSimulate
+layout(std430, binding = 2) buffer AliveBufferPostSimulate
 {
 	uint Indices[];
 } u_AliveBufferPostSimulate;
 
-layout(std140, binding = 3) buffer DeadBuffer
+layout(std430, binding = 3) buffer DeadBuffer
 {
 	uint Indices[];
 } u_DeadBuffer;
@@ -59,6 +59,7 @@ layout(std140, binding = 6) buffer IndirectDrawBuffer
 	uvec3 DispatchEmit;
 	uvec3 DispatchSimulation;
 	uvec4 DrawParticles;
+	uint FirstInstance;
 } u_IndirectDrawBuffer;
 
 layout(std140, binding = 7) uniform ParticleEmitter
@@ -107,5 +108,9 @@ void main()
 	uint particleCount = u_CounterBuffer.AliveCount_AfterSimulation;
 
 	// Create draw argument buffer (VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation):
-	u_IndirectDrawBuffer.DrawParticles = uvec4(4, particleCount, 0, 0);
+	// u_IndirectDrawBuffer.DrawParticles = uvec4(4, particleCount, 0, 0);
+	
+	// IndexCount, InstanceCount, FirstIndex, VertexOffset
+	u_IndirectDrawBuffer.DrawParticles = uvec4(particleCount * 6, 1, 0, 0);
+	u_IndirectDrawBuffer.FirstInstance = 0;
 }
