@@ -212,9 +212,25 @@ namespace Charon {
 
 		m_Camera->Update();
 
+		// Upload gradient points
+		const auto& marks = m_Gradient.getMarks();
+		m_Emitter.GradientPointCount = marks.size();
+		for (size_t i = 0; i < marks.size(); i++)
+			m_Emitter.ColorGradientPoints[i] = *(GradientPoint*)marks[i];
+
 		m_Emitter.Time = Application::GetApp().GetGlobalTime();
 		m_Emitter.DeltaTime = Application::GetApp().GetDeltaTime();
 		m_ParticleBuffers.EmitterBuffer->UpdateBuffer(&m_Emitter);
+
+		static int emissionCount = 0;
+		emissionCount += m_Emitter.EmissionQuantity;
+		m_SecondTimer -= m_Emitter.DeltaTime;
+		if (m_SecondTimer <= 0.0f)
+		{
+			m_ParticlesEmittedPerSecond = emissionCount;
+			emissionCount = 0;
+			m_SecondTimer = 1.0f;
+		}
 
 		// Swap alive lists
 		{
@@ -362,6 +378,21 @@ namespace Charon {
 
 		ImGui::Image(imTex, { width, width * aspect }, ImVec2(0, 1), ImVec2(1, 0));
 
+		ImGui::End();
+
+		ImGui::Begin("Particle Controls");
+
+		static ImGradientMark* draggingMark = nullptr;
+		static ImGradientMark* selectedMark = nullptr;
+		bool isDragging = false;
+
+		if (!draggingMark && !ImGui::IsAnyItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+			selectedMark = nullptr;
+
+		bool updated = GradientEditor(&m_Gradient, draggingMark, selectedMark, isDragging);
+
+		ImGui::Text("Time step: %.4f", m_Emitter.DeltaTime);
+		ImGui::Text("Particles per second: %d", m_ParticlesEmittedPerSecond);
 		ImGui::End();
 	}
 

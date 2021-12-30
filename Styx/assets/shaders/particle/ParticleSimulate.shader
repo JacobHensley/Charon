@@ -14,10 +14,11 @@ struct Vertex
 struct Particle
 {
 	vec3 Position;
-	float Lifetime;
+	float CurrentLife;
 	vec3 Rotation;
 	float Speed;
 	vec3 Scale;
+	float Lifetime;
 	vec3 Color;
 	vec3 Velocity;
 };
@@ -63,6 +64,12 @@ layout(std140, binding = 6) buffer IndirectDrawBuffer
 	uint FirstInstance;
 } u_IndirectDrawBuffer;
 
+struct GradientPoint
+{
+	vec3 Color;
+	float Position;
+};
+
 layout(std140, binding = 7) uniform ParticleEmitter
 {
 	vec3 InitialRotation;
@@ -77,6 +84,10 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	uint MaxParticles;
 	float DirectionrRandomness;
 	float VelocityRandomness;
+
+	uint GradientPointCount;
+	uint Padding0;
+	GradientPoint ColorGradientPoints[10];
 
 	float Time;
 	float DeltaTime;
@@ -103,6 +114,53 @@ const uint THREADCOUNT_SIMULATION = 256;
 // Move to include  ^
 /////////////////////////////
 
+vec3 GetParticleColor(float lifePercentage, vec3 particleColor)
+{
+	if (u_Emitter.GradientPointCount == 0)
+		return particleColor;
+
+	// Gradient position == lifePercentage
+	float position = clamp(lifePercentage, 0.0f, 1.0f);
+
+	GradientPoint lower;
+	lower.Position = -1.0f;
+	GradientPoint upper;
+	upper.Position = -1.0f;
+
+	// If only 1 point, or we're beneath the first point, return the first point
+	if (u_Emitter.GradientPointCount == 1 || position <= u_Emitter.ColorGradientPoints[0].Position)
+		return u_Emitter.ColorGradientPoints[0].Color;
+
+	// If we're beyond the last point, return the last point
+	if (position >= u_Emitter.ColorGradientPoints[u_Emitter.GradientPointCount - 1].Position)
+		return u_Emitter.ColorGradientPoints[u_Emitter.GradientPointCount - 1].Color;
+
+	for (int i = 0; i < u_Emitter.GradientPointCount; i++)
+	{
+		if (u_Emitter.ColorGradientPoints[i].Position <= position)
+		{
+			if (lower.Position == -1.0f || lower.Position <= u_Emitter.ColorGradientPoints[i].Position)
+				lower = u_Emitter.ColorGradientPoints[i];
+		}
+
+		if (u_Emitter.ColorGradientPoints[i].Position >= position)
+		{
+			if (upper.Position == -1.0f || upper.Position >= u_Emitter.ColorGradientPoints[i].Position)
+				upper = u_Emitter.ColorGradientPoints[i];
+		}
+	}
+
+	float distance = upper.Position - lower.Position;
+	float delta = (position - lower.Position) / distance;
+
+	// lerp
+	float r = ((1.0f - delta) * lower.Color.r) + ((delta) * upper.Color.r);
+	float g = ((1.0f - delta) * lower.Color.g) + ((delta) * upper.Color.g);
+	float b = ((1.0f - delta) * lower.Color.b) + ((delta) * upper.Color.b);
+
+	return vec3(r, g, b);
+}
+
 layout(local_size_x = THREADCOUNT_SIMULATION) in;
 void main()
 {
@@ -114,15 +172,17 @@ void main()
 		Particle particle = u_ParticleBuffer.particles[particleIndex];
 		uint v0 = particleIndex * 4;
 
-		if (particle.Lifetime > 0)
+		if (particle.CurrentLife > 0)
 		{
 			// TODO: -----> Simulate Here <-----
 
-			particle.Lifetime -= u_Emitter.DeltaTime;
+			particle.CurrentLife -= u_Emitter.DeltaTime;
 			particle.Position += particle.Velocity * u_Emitter.DeltaTime;
-			particle.Scale -= u_Emitter.DeltaTime*0.5;
+			particle.Scale -= u_Emitter.DeltaTime * 0.5;
 			particle.Scale = max(particle.Scale, vec3(0.0));
 			particle.Velocity.y -= u_Emitter.DeltaTime * 6.0;
+
+			particle.Color = GetParticleColor(1.0f - particle.CurrentLife / particle.Lifetime, particle.Color);
 			
 			// write back simulated particle:
 			u_ParticleBuffer.particles[particleIndex] = particle;

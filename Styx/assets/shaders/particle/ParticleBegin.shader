@@ -13,10 +13,11 @@ struct Vertex
 struct Particle
 {
 	vec3 Position;
-	float Lifetime;
+	float CurrentLife;
 	vec3 Rotation;
 	float Speed;
 	vec3 Scale;
+	float Lifetime;
 	vec3 Color;
 	vec3 Velocity;
 };
@@ -62,6 +63,12 @@ layout(std140, binding = 6) buffer IndirectDrawBuffer
 	uint FirstInstance;
 } u_IndirectDrawBuffer;
 
+struct GradientPoint
+{
+	vec3 Color;
+	float Position;
+};
+
 layout(std140, binding = 7) uniform ParticleEmitter
 {
 	vec3 InitialRotation;
@@ -76,6 +83,10 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	uint MaxParticles;
 	float DirectionrRandomness;
 	float VelocityRandomness;
+
+	uint GradientPointCount;
+	uint Padding0;
+	GradientPoint ColorGradientPoints[10];
 
 	float Time;
 	float DeltaTime;

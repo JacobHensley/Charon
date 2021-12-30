@@ -91,6 +91,7 @@ namespace Charon {
 		{
 			m_GlobalTime = (float)glfwGetTime();
 			m_DeltaTime = m_GlobalTime - lastTime;
+			m_DeltaTime = glm::min(m_DeltaTime, 1000.0f / 30.0f);
 			lastTime = m_GlobalTime;
 
 			OnUpdate();

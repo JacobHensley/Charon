@@ -6,16 +6,18 @@
 #include "Charon/Graphics/VulkanPipeline.h"
 #include "Charon/Graphics/Buffers.h"
 
+#include "UI/ImGuiColorGradient.h"
+
 namespace Charon {
 
     struct Particle
     {
         glm::vec3 Position;
-        float Lifetime;
+        float CurrentLife;
         glm::vec3 Rotation;
         float Speed;
         glm::vec3 Scale;
-        float padding0;
+        float Lifetime;
         glm::vec3 Color;
         float padding1;
         glm::vec3 Velocity;
@@ -36,6 +38,12 @@ namespace Charon {
         uint32_t AliveCount_AfterSimulation = 0;
     };
 
+	struct GradientPoint
+	{
+		glm::vec3 Color;
+		float Position;
+	};
+
     struct Emitter
     {
         glm::vec3 InitialRotation;
@@ -50,6 +58,11 @@ namespace Charon {
         uint32_t MaxParticles;
         float DirectionrRandomness;
         float VelocityRandomness;
+
+		uint32_t GradientPointCount;
+		uint32_t Padding0;
+		GradientPoint ColorGradientPoints[10];
+
         float Time;
         float DeltaTime;
     };
@@ -122,6 +135,11 @@ namespace Charon {
             Ref<StorageBuffer> VertexBuffer;
             Ref<IndexBuffer> IndexBuffer;
         } m_ParticleBuffers;
+
+        ImGradient m_Gradient;
+
+        float m_SecondTimer = 1.0f;
+        uint32_t m_ParticlesEmittedPerSecond = 0;
     };
 
 }

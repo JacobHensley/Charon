@@ -181,6 +181,7 @@ namespace Charon {
 				selectedPresentMode = availablePresentMode;
 			}
 		}
+		//selectedPresentMode = VK_PRESENT_MODE_FIFO_KHR;
 
 		// Select extent
 		VkSurfaceCapabilitiesKHR capabilities = supportDetails.Capabilities;
