@@ -174,14 +174,10 @@ void main()
 
 		if (particle.CurrentLife > 0)
 		{
-			// TODO: -----> Simulate Here <-----
-
-			particle.CurrentLife -= u_Emitter.DeltaTime;
+			// simulate
 			particle.Position += particle.Velocity * u_Emitter.DeltaTime;
-			particle.Scale -= u_Emitter.DeltaTime * 0.5;
-			particle.Scale = max(particle.Scale, vec3(0.0));
-			particle.Velocity.y -= u_Emitter.DeltaTime * 6.0;
-
+			particle.Velocity.y -= u_Emitter.Gravity * u_Emitter.DeltaTime;
+			particle.CurrentLife -= u_Emitter.DeltaTime;
 			particle.Color = GetParticleColor(1.0f - particle.CurrentLife / particle.Lifetime, particle.Color);
 			
 			// write back simulated particle:
@@ -191,18 +187,11 @@ void main()
 			uint newAliveIndex = atomicAdd(u_CounterBuffer.AliveCount_AfterSimulation, 1);
 			u_AliveBufferPostSimulate.Indices[newAliveIndex] = particleIndex;
 
-			// Write out render buffers:
-			// These must be persistent, not culled (raytracing, surfels...)
-
-		//	for (uint vertexID = 0; vertexID < 4; ++vertexID)
-			{
-				// write out vertex:
-				u_VertexBuffer.vertices[(v0 + 0)].Position = particle.Position + vec3(-0.5, -0.5, 0.0);
-				u_VertexBuffer.vertices[(v0 + 1)].Position = particle.Position + vec3(0.5, -0.5, 0.0);
-				u_VertexBuffer.vertices[(v0 + 2)].Position = particle.Position + vec3(0.5, 0.5, 0.0);
-				u_VertexBuffer.vertices[(v0 + 3)].Position = particle.Position + vec3(-0.5, 0.5, 0.0);
-			}
-
+			// write out vertex:
+			u_VertexBuffer.vertices[(v0 + 0)].Position = particle.Position + vec3(-0.5, -0.5, 0.0);
+			u_VertexBuffer.vertices[(v0 + 1)].Position = particle.Position + vec3(0.5, -0.5, 0.0);
+			u_VertexBuffer.vertices[(v0 + 2)].Position = particle.Position + vec3(0.5, 0.5, 0.0);
+			u_VertexBuffer.vertices[(v0 + 3)].Position = particle.Position + vec3(-0.5, 0.5, 0.0);
 		}
 		else
 		{
@@ -210,10 +199,10 @@ void main()
 			uint deadIndex = atomicAdd(u_CounterBuffer.DeadCount, 1);
 			u_DeadBuffer.Indices[deadIndex] = particleIndex;
 
-			u_VertexBuffer.vertices[(v0 + 0)].Position = vec3(-5);
-			u_VertexBuffer.vertices[(v0 + 1)].Position = vec3(-5);
-			u_VertexBuffer.vertices[(v0 + 2)].Position = vec3(-5);
-			u_VertexBuffer.vertices[(v0 + 3)].Position = vec3(-5);
+			u_VertexBuffer.vertices[(v0 + 0)].Position = vec3(0);
+			u_VertexBuffer.vertices[(v0 + 1)].Position = vec3(0);
+			u_VertexBuffer.vertices[(v0 + 2)].Position = vec3(0);
+			u_VertexBuffer.vertices[(v0 + 3)].Position = vec3(0);
 		}
 	}
 

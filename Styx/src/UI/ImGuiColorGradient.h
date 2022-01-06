@@ -1,8 +1,7 @@
 #pragma once
-
 #include <vector>
+#include <string>
 #include <glm/glm.hpp>
-
 #include "imgui/imgui.h"
 
 namespace Charon {
@@ -19,7 +18,7 @@ namespace Charon {
 		ImGradient();
 		~ImGradient();
 
-		void addMark(float position, ImColor const color);
+		ImGradientMark* addMark(float position, ImColor const color);
 		void removeMark(ImGradientMark* mark);
 		void getColorAt(float position, glm::vec4& color) const;
 		void computeColorAt(float position, float* color) const;
@@ -42,7 +41,7 @@ namespace Charon {
 
 	bool GradientButton(ImGradient* gradient);
 
-	bool GradientEditor(ImGradient* gradient,
+	bool GradientEditor(ImGradient* gradient, const std::string& name,
 		ImGradientMark*& draggingMark,
 		ImGradientMark*& selectedMark, bool& dragging);
 }

@@ -29,10 +29,19 @@ namespace Charon {
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
         m_WindowHandle = glfwCreateWindow(m_Width, m_Height, m_Name.c_str(), nullptr, nullptr);
+        glfwSetWindowUserPointer(m_WindowHandle, this);
+
+        glfwSetScrollCallback(m_WindowHandle, [](GLFWwindow* window, double xOffset, double yOffset)
+        {
+            Window& win = *(Window*)glfwGetWindowUserPointer(window);
+            win.SetMouseScrollWheel(yOffset);
+            win.m_IsMouseScrolling = true;
+        });
     }
 
     void Window::OnUpdate()
     {
+        m_IsMouseScrolling = false;
         glfwPollEvents();
     }
 

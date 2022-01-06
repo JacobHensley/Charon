@@ -33,7 +33,7 @@ layout(std430, binding = 1) buffer AliveBufferPostSimulate
     uint Indices[];
 } u_AliveBufferPostSimulate;
 
-const vec3 c_Vertices[4] = vec3[4](
+vec3 c_Vertices[4] = vec3[4](
     vec3(-0.5f, -0.5f, 0.0f),
     vec3( 0.5f, -0.5f, 0.0f),
     vec3( 0.5f,  0.5f, 0.0f),
@@ -42,11 +42,18 @@ const vec3 c_Vertices[4] = vec3[4](
 
 void main()
 {
-    //gl_Position = u_CameraBuffer.ViewProjection * vec4(a_Position, 1.0);
-
     uint particleIndex = u_AliveBufferPostSimulate.Indices[gl_VertexIndex / 4];
     Particle particle = particles[particleIndex];
     v_Color = particle.Color;
+
+    vec3 camRightWS = { u_CameraBuffer.View[0][0],  u_CameraBuffer.View[1][0], u_CameraBuffer.View[2][0] }; // X
+    vec3 camUpWS = { u_CameraBuffer.View[0][1],  u_CameraBuffer.View[1][1], u_CameraBuffer.View[2][1] };    // Y
+
+    // NOTE: May not be efficient becuse of doing this per vertex instead per particle
+    c_Vertices[0] = (camRightWS * -0.5 + camUpWS * -0.5);
+    c_Vertices[1] = (camRightWS * 0.5 + camUpWS * -0.5);
+    c_Vertices[2] = (camRightWS * 0.5 + camUpWS * 0.5);
+    c_Vertices[3] = (camRightWS * -0.5 + camUpWS * 0.5);
 
     gl_Position = u_CameraBuffer.ViewProjection * vec4(particle.Position + c_Vertices[gl_VertexIndex % 4] * particle.Scale, 1.0);
 }

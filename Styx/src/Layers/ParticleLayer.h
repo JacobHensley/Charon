@@ -5,7 +5,8 @@
 #include "Charon/Graphics/VulkanComputePipeline.h"
 #include "Charon/Graphics/VulkanPipeline.h"
 #include "Charon/Graphics/Buffers.h"
-
+#include "Charon/Graphics/Texture2D.h"
+#include "UI/ViewportPanel.h"
 #include "UI/ImGuiColorGradient.h"
 
 namespace Charon {
@@ -92,10 +93,24 @@ namespace Charon {
 
     private:
         Ref<Camera> m_Camera;
+        Ref<ViewportPanel> m_ViewportPanel;
         Emitter m_Emitter;
 
         inline static uint32_t m_MaxParticles = 1'000'000;
         inline static uint32_t m_MaxIndices = m_MaxParticles * 6;
+
+        float m_EmitCount = 0.0f;
+        float m_Count = 0.0f;
+
+        float m_Burst = 0.0f;
+        float m_BurstCount = 0.0f;
+        float m_BurstInterval = 0.0f;
+        float m_BurstIntervalCount = 0.0f;
+
+        float m_SecondTimer = 1.0f;
+        uint32_t m_ParticlesEmittedPerSecond = 0;
+
+        ImGradient m_ColorLifetimeGradient;
 
         Ref<VulkanPipeline> m_ParticleRendererPipeline;
         Ref<Shader> m_ParticleShader;
@@ -135,11 +150,6 @@ namespace Charon {
             Ref<StorageBuffer> VertexBuffer;
             Ref<IndexBuffer> IndexBuffer;
         } m_ParticleBuffers;
-
-        ImGradient m_Gradient;
-
-        float m_SecondTimer = 1.0f;
-        uint32_t m_ParticlesEmittedPerSecond = 0;
     };
 
 }

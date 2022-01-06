@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Camera.h"
+#include "Charon/Core/Application.h"
 #include "Charon/Input/Input.h"
 #include "Charon/Input/KeyCodes.h"
 #include <glm/gtx/quaternion.hpp>
@@ -29,6 +30,13 @@ namespace Charon {
 			MouseRotate(delta);
 		}
 
+		Ref<Window> window = Application::GetApp().GetWindow();
+
+		if (window->GetIsMouseScrolling())
+		{
+			MouseZoom(window->GetMouseScrollWheel());
+		}
+		
 		m_Position = CalculatePosition();
 
 		glm::quat orientation = GetOrientation();
@@ -40,7 +48,7 @@ namespace Charon {
 	{
 		m_PanSpeed = 0.001f;
 		m_RotationSpeed = 0.001f;
-		m_ZoomSpeed = 0.9f;
+		m_ZoomSpeed = 2.0f;
 
 		m_Position = { -10, 10, 10 };
 		m_Rotation = glm::vec3(90.0f, 0.0f, 0.0f);

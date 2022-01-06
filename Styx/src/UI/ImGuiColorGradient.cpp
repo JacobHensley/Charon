@@ -15,7 +15,7 @@
 
 namespace Charon {
 	static const float GRADIENT_BAR_WIDGET_HEIGHT = 25;
-	static const float GRADIENT_BAR_EDITOR_HEIGHT = 40;
+	static const float GRADIENT_BAR_EDITOR_HEIGHT = 24;
 	static const float GRADIENT_MARK_DELETE_DIFFY = 40;
 
 	ImGradient::ImGradient()
@@ -32,7 +32,7 @@ namespace Charon {
 		}
 	}
 
-	void ImGradient::addMark(float position, ImColor const color)
+	ImGradientMark* ImGradient::addMark(float position, ImColor const color)
 	{
 		position = ImClamp(position, 0.0f, 1.0f);
 		ImGradientMark* newMark = new ImGradientMark();
@@ -44,6 +44,8 @@ namespace Charon {
 		m_marks.push_back(newMark);
 
 		refreshCache();
+		
+		return newMark;
 	}
 
 	void ImGradient::removeMark(ImGradientMark* mark)
@@ -241,11 +243,6 @@ namespace Charon {
 			{
 				ImGradientMark* mark = *markIt;
 
-				if (!selectedMark)
-				{
-				//	selectedMark = mark;
-				}
-
 				float to = bar_pos.x + mark->position * maxWidth;
 
 				if (prevMark == nullptr)
@@ -307,7 +304,6 @@ namespace Charon {
 					}
 				}
 
-
 				prevMark = mark;
 			}
 
@@ -319,7 +315,6 @@ namespace Charon {
 			if (!gradient) return false;
 
 			ImVec2 widget_pos = ImGui::GetCursorScreenPos();
-			// ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
 			float maxWidth = ImMax(250.0f, ImGui::GetContentRegionAvailWidth() - 100.0f);
 			bool clicked = ImGui::InvisibleButton("gradient_bar", ImVec2(maxWidth, GRADIENT_BAR_WIDGET_HEIGHT));
@@ -329,17 +324,20 @@ namespace Charon {
 			return clicked;
 		}
 
-		bool GradientEditor(ImGradient* gradient,
+		bool GradientEditor(ImGradient* gradient, const std::string& name,
 			ImGradientMark*& draggingMark,
 			ImGradientMark*& selectedMark, bool& dragging)
 		{
 			if (!gradient) return false;
 
+			if (!draggingMark && !ImGui::IsAnyItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+				selectedMark = nullptr;
+
 			bool modified = false;
 
 			ImVec2 bar_pos = ImGui::GetCursorScreenPos();
-			bar_pos.x += 10;
-			float maxWidth = ImGui::GetContentRegionAvailWidth() - 20;
+			bar_pos.x += 5;
+			float maxWidth = ImGui::CalcItemWidth() - 5;
 			float barBottom = bar_pos.y + GRADIENT_BAR_EDITOR_HEIGHT;
 
 			ImGui::InvisibleButton("gradient_editor_bar", ImVec2(maxWidth, GRADIENT_BAR_EDITOR_HEIGHT));
@@ -351,11 +349,14 @@ namespace Charon {
 				glm::vec4 newMarkCol;
 				gradient->getColorAt(pos, newMarkCol);
 
-
-				gradient->addMark(pos, ImColor(newMarkCol[0], newMarkCol[1], newMarkCol[2]));
+				selectedMark = gradient->addMark(pos, ImColor(newMarkCol[0], newMarkCol[1], newMarkCol[2]));
 			}
 
 			DrawGradientBar(gradient, bar_pos, maxWidth, GRADIENT_BAR_EDITOR_HEIGHT);
+
+			ImGui::SameLine();
+			ImGui::Text(name.c_str());
+
 			DrawGradientMarks(gradient, draggingMark, selectedMark, bar_pos, maxWidth, GRADIENT_BAR_EDITOR_HEIGHT);
 
 			if (!ImGui::IsMouseDown(0) && draggingMark)
@@ -366,8 +367,7 @@ namespace Charon {
 			if (ImGui::IsMouseDragging(0) && draggingMark)
 			{
 				float increment = ImGui::GetIO().MouseDelta.x / maxWidth;
-				bool insideZone = (ImGui::GetIO().MousePos.x > bar_pos.x) &&
-					(ImGui::GetIO().MousePos.x < bar_pos.x + maxWidth);
+				bool insideZone = (ImGui::GetIO().MousePos.x > bar_pos.x) && (ImGui::GetIO().MousePos.x < bar_pos.x + maxWidth);
 
 				if (increment != 0.0f && insideZone)
 				{
@@ -388,14 +388,9 @@ namespace Charon {
 				}
 			}
 
-			if (!selectedMark && gradient->getMarks().size() > 0)
-			{
-				//selectedMark = gradient->getMarks().front();
-			}
-
 			if (selectedMark)
 			{
-				bool colorModified = ImGui::ColorEdit4("##selectedmark", glm::value_ptr(selectedMark->color));
+				bool colorModified = ImGui::ColorEdit3("##selectedmark", glm::value_ptr(selectedMark->color));
 
 				if (selectedMark && colorModified)
 				{

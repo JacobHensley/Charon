@@ -127,12 +127,12 @@ void main()
 		// create new particle:
 		Particle particle;
 		particle.Position = u_Emitter.Position;
-		particle.Lifetime = u_Emitter.InitialLifetime * rand(seed, uv) + 1.0;
+		particle.Lifetime = u_Emitter.InitialLifetime;
 		particle.CurrentLife = particle.Lifetime;
 		particle.Rotation = u_Emitter.InitialRotation;
 		particle.Speed = u_Emitter.InitialSpeed;
-		particle.Scale = u_Emitter.InitialScale * rand(seed, uv);
-		particle.Color = vec3(rand(seed, uv), rand(seed, uv), rand(seed, uv));
+		particle.Scale = u_Emitter.InitialScale;
+		particle.Color = u_Emitter.InitialColor;
 		particle.Velocity = (u_Emitter.Direction * u_Emitter.InitialSpeed) + vec3(rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f) * u_Emitter.DirectionrRandomness;
 
 		// new particle index retrieved from dead list (pop):

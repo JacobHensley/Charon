@@ -2,9 +2,10 @@
 #include "Charon/Core/Application.h"
 #include "Charon/Graphics/Renderer.h"
 #include "Charon/Graphics/SceneRenderer.h"
-#include <glm/gtc/type_ptr.hpp>
 #include "Charon/ImGui/imgui_impl_vulkan_with_textures.h"
 #include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
+#include <glm/gtc/type_ptr.hpp>
 
 namespace Charon {
 
@@ -36,6 +37,8 @@ namespace Charon {
 		m_Emitter.InitialSpeed = 5.0f;
 		m_Emitter.InitialColor = glm::vec3(1.0f, 0.0f, 0.0f);
 		
+		m_Count = 50.0f;
+
 		// Shaders
 		m_ParticleShaders.Begin = CreateRef<Shader>("assets/shaders/particle/ParticleBegin.shader");
 		m_ParticleShaders.Emit = CreateRef<Shader>("assets/shaders/particle/ParticleEmit.shader");
@@ -60,8 +63,9 @@ namespace Charon {
 		m_ParticleBuffers.IndexBuffer = CreateRef<IndexBuffer>(sizeof(uint32_t) * m_MaxIndices, m_MaxIndices);
 
 		m_Camera = CreateRef<Camera>(glm::perspectiveFov(glm::radians(45.0f), 1280.0f, 720.0f, 0.1f, 100.0f));
+		m_ViewportPanel = CreateRef<ViewportPanel>();
 
-		// Init buffers
+		// Init buffers 
 		{
 			// Counter buffer
 			ScopedMap<CounterBuffer, StorageBuffer> newCounterBuffer(m_ParticleBuffers.CounterBuffer);
@@ -112,7 +116,7 @@ namespace Charon {
 			delete layout;
 		}
 
-		// Particle renderer write rescriptors
+		// Particle renderer write descriptors
 		{
 			VkWriteDescriptorSet& particleWriteDescriptor = m_ParticleRendererWriteDescriptors.emplace_back();
 			particleWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -136,7 +140,7 @@ namespace Charon {
 			cameraWriteDescriptor.descriptorCount = 1;
 		}
 
-		// Particle simulation write rescriptors
+		// Particle simulation write descriptors
 		{
 			VkWriteDescriptorSet& particleBufferWD = m_ParticleSimulationWriteDescriptors.emplace_back();
 			particleBufferWD.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -213,15 +217,29 @@ namespace Charon {
 		m_Camera->Update();
 
 		// Upload gradient points
-		const auto& marks = m_Gradient.getMarks();
+		const auto& marks = m_ColorLifetimeGradient.getMarks();
 		m_Emitter.GradientPointCount = marks.size();
 		for (size_t i = 0; i < marks.size(); i++)
+		{
 			m_Emitter.ColorGradientPoints[i] = *(GradientPoint*)marks[i];
-
+		}
+			
+		// Set global and delta time
 		m_Emitter.Time = Application::GetApp().GetGlobalTime();
 		m_Emitter.DeltaTime = Application::GetApp().GetDeltaTime();
-		m_ParticleBuffers.EmitterBuffer->UpdateBuffer(&m_Emitter);
 
+		// TODO: Fix issue with lower particle per second count
+		// Set emission quantity based on particles per second and delta time
+		m_EmitCount = std::max(0.0f, m_EmitCount - std::floor(m_EmitCount));
+		m_EmitCount += m_Count * m_Emitter.DeltaTime;
+		m_EmitCount += m_Burst;
+		m_Emitter.EmissionQuantity = (uint32_t)m_EmitCount;
+		m_Burst = 0.0f;
+
+		// Upload emitter buffer
+		m_ParticleBuffers.EmitterBuffer->UpdateBuffer(&m_Emitter);
+		
+		// Calculate particles per second
 		static int emissionCount = 0;
 		emissionCount += m_Emitter.EmissionQuantity;
 		m_SecondTimer -= m_Emitter.DeltaTime;
@@ -232,6 +250,14 @@ namespace Charon {
 			m_SecondTimer = 1.0f;
 		}
 
+		// Calculate burst
+		m_BurstIntervalCount -= m_Emitter.DeltaTime;
+		if (m_BurstIntervalCount <= 0.0f && m_BurstCount > 0)
+		{
+			m_Burst += m_BurstCount;
+			m_BurstIntervalCount = m_BurstInterval;
+		}
+		 
 		// Swap alive lists
 		{
 			m_ParticleSimulationWriteDescriptors[1].dstBinding = (frame % 2 == 0) ? 1 : 2;
@@ -367,33 +393,43 @@ namespace Charon {
 
 	void ParticleLayer::OnImGUIRender()
 	{
-		ImGui::Begin("Viewport");
+		m_ViewportPanel->Render(m_Camera);
 
-		auto& descriptorInfo = SceneRenderer::GetFinalBuffer()->GetImage(0)->GetDescriptorImageInfo();
-		ImTextureID imTex = ImGui_ImplVulkan_AddTexture(descriptorInfo.sampler, descriptorInfo.imageView, descriptorInfo.imageLayout);
+		// Particle Settings Panel
+		{
+			ImGui::Begin("Particle settings");
 
-		const auto& fbSpec = SceneRenderer::GetFinalBuffer()->GetSpecification();
-		float width = ImGui::GetContentRegionAvail().x;
-		float aspect = (float)fbSpec.Height / (float)fbSpec.Width;
+			if (ImGui::CollapsingHeader("Initial Settings"), ImGuiTreeNodeFlags_DefaultOpen)
+			{
+				ImGui::DragFloat3("Initial Rotation", glm::value_ptr(m_Emitter.InitialRotation), 0.1f);
+				ImGui::DragFloat3("Initial Scale", glm::value_ptr(m_Emitter.InitialScale), 0.1f, 0.0f);
+				ImGui::DragFloat3("Initial Color", glm::value_ptr(m_Emitter.InitialColor), 0.1f, 0.0f, 1.0f);
+				ImGui::DragFloat("Initial Spped", &m_Emitter.InitialSpeed, 0.1f);
+				ImGui::DragFloat("Initial Lifetime", &m_Emitter.InitialLifetime, 0.1f);
+				ImGui::DragFloat("Gravity Modifier", &m_Emitter.Gravity, 0.1f);
+			}
 
-		ImGui::Image(imTex, { width, width * aspect }, ImVec2(0, 1), ImVec2(1, 0));
+			if (ImGui::CollapsingHeader("Emitter Settings"), ImGuiTreeNodeFlags_DefaultOpen)
+			{
+				ImGui::DragFloat3("Emitter Postion", glm::value_ptr(m_Emitter.Position), 0.1f);
+				ImGui::DragFloat("Emission Quantity", &m_Count, 0.1f, 0.0f);
+				ImGui::DragFloat("Burst Count", &m_BurstCount, 0.1f, 0.0f);
+				ImGui::DragFloat("Burst Interval", &m_BurstInterval, 0.1f, 0.0f);
+			}
 
-		ImGui::End();
+			if (ImGui::CollapsingHeader("Over-Lifetime Settings"), ImGuiTreeNodeFlags_DefaultOpen)
+			{
+				static ImGradientMark* draggingMark = nullptr;
+				static ImGradientMark* selectedMark = nullptr;
+				bool isDragging = false;
 
-		ImGui::Begin("Particle Controls");
+				// TODO: Add way to disable widget
+				bool updated = GradientEditor(&m_ColorLifetimeGradient, "Color Over Lifetime", draggingMark, selectedMark, isDragging);
+			}
 
-		static ImGradientMark* draggingMark = nullptr;
-		static ImGradientMark* selectedMark = nullptr;
-		bool isDragging = false;
+			ImGui::End();
+		}
 
-		if (!draggingMark && !ImGui::IsAnyItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-			selectedMark = nullptr;
-
-		bool updated = GradientEditor(&m_Gradient, draggingMark, selectedMark, isDragging);
-
-		ImGui::Text("Time step: %.4f", m_Emitter.DeltaTime);
-		ImGui::Text("Particles per second: %d", m_ParticlesEmittedPerSecond);
-		ImGui::End();
 	}
 
 }

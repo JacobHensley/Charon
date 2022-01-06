@@ -49,10 +49,10 @@ namespace Charon {
 		{
 			return m_MappedData;
 		}
+
 	private:
 		std::shared_ptr<BufferType> m_Buffer;
 		T* m_MappedData;
-
 	};
 
 	// Vertex Buffer
@@ -124,6 +124,7 @@ namespace Charon {
 			VulkanAllocator allocator("UniformBuffer");
 			return allocator.UnmapMemory(m_BufferInfo.Allocation);
 		}
+
 	private:
 		BufferInfo m_BufferInfo;
 		VkDescriptorBufferInfo m_DescriptorBufferInfo;

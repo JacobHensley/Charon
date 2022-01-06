@@ -13,6 +13,8 @@ namespace Charon {
 		void Reset();
 
 		const glm::mat4& GetProjectionMatrix() const { return m_ProjectionMatrix; }
+		void SetProjectionMatrix(const glm::mat4& matrix) { m_ProjectionMatrix = matrix; }
+
 		const glm::mat4& GetViewMatrix() const { return m_ViewMatrix; }
 		const glm::mat4 GetViewProjection() const { return m_ProjectionMatrix * m_ViewMatrix; }
 		const glm::mat4 GetInverseVP() const { return glm::inverse(m_ProjectionMatrix * m_ViewMatrix); }
