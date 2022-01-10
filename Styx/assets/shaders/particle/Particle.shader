@@ -68,5 +68,5 @@ layout(location = 0) out vec4 outColor;
 void main()
 {
     outColor.rgb = v_Color;
-    outColor.a = 1.0;
+    outColor.a = 0.4;
 }

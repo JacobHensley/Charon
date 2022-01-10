@@ -113,10 +113,10 @@ namespace Charon {
 		const VkDescriptorBufferInfo& getDescriptorBufferInfo() { return m_DescriptorBufferInfo; }
 
 		template<typename T>
-		void* Map()
+		T* Map()
 		{
 			VulkanAllocator allocator("UniformBuffer");
-			return allocator.MapMemory<T>(m_BufferInfo.Allocation);
+			return (T*)allocator.MapMemory<T>(m_BufferInfo.Allocation);
 		}
 
 		void Unmap()

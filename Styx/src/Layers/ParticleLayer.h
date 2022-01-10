@@ -78,6 +78,12 @@ namespace Charon {
         uint32_t FirstInstance = 0;
 	};
 
+    struct SortParameters
+    {
+		uint32_t h;
+		uint32_t algorithm;
+    };
+
     class ParticleLayer : public Layer
     {
     public:
@@ -95,6 +101,7 @@ namespace Charon {
         Ref<Camera> m_Camera;
         Ref<ViewportPanel> m_ViewportPanel;
         Emitter m_Emitter;
+        SortParameters m_SortParameters;
 
         inline static uint32_t m_MaxParticles = 1'000'000;
         inline static uint32_t m_MaxIndices = m_MaxParticles * 6;
@@ -121,12 +128,17 @@ namespace Charon {
         VkDescriptorSet m_ParticleSimulationDescriptorSet = nullptr;
         std::vector<VkWriteDescriptorSet> m_ParticleSimulationWriteDescriptors;
 
+		VkDescriptorSet m_ParticleSortDescriptorSet = nullptr;
+		std::vector<VkWriteDescriptorSet> m_ParticleSortWriteDescriptors;
+
+
         struct ParticleShaders
         {
             Ref<Shader> Begin;
             Ref<Shader> Emit;
             Ref<Shader> Simulate;
             Ref<Shader> End;
+            Ref<Shader> Sort;
         } m_ParticleShaders;
 
         struct ParticlePipelines
@@ -135,6 +147,7 @@ namespace Charon {
             Ref<VulkanComputePipeline> Emit;
             Ref<VulkanComputePipeline> Simulate;
             Ref<VulkanComputePipeline> End;
+            Ref<VulkanComputePipeline> Sort;
 
         } m_ParticlePipelines;
 
@@ -149,6 +162,7 @@ namespace Charon {
             Ref<StorageBuffer> IndirectDrawBuffer;
             Ref<StorageBuffer> VertexBuffer;
             Ref<IndexBuffer> IndexBuffer;
+			Ref<UniformBuffer> SortParameters;
         } m_ParticleBuffers;
     };
 
