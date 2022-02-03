@@ -63,7 +63,6 @@ layout (binding = 3) uniform Parameters {
 // It allows us to evaluate a sorting network of up to 1024 with one shader invocation.
 shared uint local_value[gl_WorkGroupSize.x * 2];
 
-
 // Color-aware comparison: returns true if left is brighter than right
 // Note that we do our luminance comparisons in OK Lab color space - this
 // is so that we may compare colors by *perceived* brightness.
@@ -76,19 +75,21 @@ bool is_greater(in const uint left, in const uint right){
 	return left < right;
 }
 
-// Pick comparison funtion: for colors we want to compare perceptual brightness
-// instead of a naive straight integer value comparison.
-#define COMPARE is_brighter
-
+// Disatnce comparison
 bool IsCloserToCamera(vec3 particlePosition0, vec3 particlePosition1)
 {
 	vec3 cameraPosition = u_CameraBuffer.View[3].xyz;
+
+	// TODO: Calculate disatnce without using square root
 	float p0 = length(particlePosition0 - cameraPosition);
-	// vec3 d0 = particlePosition0 - cameraPosition;
-	// float p0 = d0 * d0;
 	float p1 = length(particlePosition1 - cameraPosition);
-	return p0 > p1;
+
+	return p0 < p1;
 }
+
+// Pick comparison funtion: for colors we want to compare perceptual brightness
+// instead of a naive straight integer value comparison.
+#define COMPARE IsCloserToCamera
 
 void global_compare_and_swap(ivec2 idx)
 {

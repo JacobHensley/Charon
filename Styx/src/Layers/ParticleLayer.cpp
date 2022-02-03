@@ -230,7 +230,7 @@ namespace Charon {
 			aliveBufferPostSimulateWD.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			aliveBufferPostSimulateWD.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 			aliveBufferPostSimulateWD.dstBinding = 1;
-			aliveBufferPostSimulateWD.pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
+			aliveBufferPostSimulateWD.pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
 			aliveBufferPostSimulateWD.descriptorCount = 1;
 
 			VkWriteDescriptorSet& cameraBufferWD = m_ParticleSortWriteDescriptors.emplace_back();
@@ -298,25 +298,6 @@ namespace Charon {
 		{
 			m_Burst += m_BurstCount;
 			m_BurstIntervalCount = m_BurstInterval;
-		}
-		 
-		// Swap alive lists
-		{
-			m_ParticleSimulationWriteDescriptors[1].dstBinding = (frame % 2 == 0) ? 1 : 2;
-			m_ParticleSimulationWriteDescriptors[2].dstBinding = (frame % 2 == 0) ? 2 : 1;
-
-			if (frame % 2 == 0)
-			{
-				m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
-				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
-			}
-			else
-			{
-				m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
-				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
-			}
-
-			frame++;
 		}
 
 		// Update particle simulation write descriptors
@@ -400,7 +381,6 @@ namespace Charon {
 
 			// Particle sort
 			{
-
 				uint32_t arrayCount = 0;
 				{
 					ScopedMap<CounterBuffer, StorageBuffer> newCounterBuffer(m_ParticleBuffers.CounterBuffer);
@@ -426,6 +406,8 @@ namespace Charon {
 						workgroup_size_x = max_workgroup_size;
 					}
 
+					m_SortParameters.h = 0;
+
 					const uint32_t workgroup_count = arrayCount / (workgroup_size_x * 2);
 
 					// Fully optimised version of bitonic merge sort.
@@ -440,7 +422,7 @@ namespace Charon {
 						sortParamsBuffer->algorithm = eLocalBitonicMergeSortExample;
 						sortParamsBuffer->h = h;
 					}
-					vkCmdDispatch(commandBuffer, h, 1, 1);
+					vkCmdDispatch(commandBuffer, workgroup_count, 1, 1);
 
 
 					{
@@ -471,7 +453,7 @@ namespace Charon {
 							sortParamsBuffer->algorithm = eBigFlip;
 							sortParamsBuffer->h = h;
 						}
-						vkCmdDispatch(commandBuffer, h, 1, 1);
+						vkCmdDispatch(commandBuffer, workgroup_count, 1, 1);
 						{
 							VkBufferMemoryBarrier memoryBarrier = {};
 							memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -503,7 +485,7 @@ namespace Charon {
 									sortParamsBuffer->algorithm = eLocalDisperse;
 									sortParamsBuffer->h = hh;
 								}
-								vkCmdDispatch(commandBuffer, hh, 1, 1);
+								vkCmdDispatch(commandBuffer, workgroup_count, 1, 1);
 								{
 									VkBufferMemoryBarrier memoryBarrier = {};
 									memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -528,7 +510,7 @@ namespace Charon {
 									sortParamsBuffer->algorithm = eBigDisperse;
 									sortParamsBuffer->h = hh;
 								}
-								vkCmdDispatch(commandBuffer, hh, 1, 1);
+								vkCmdDispatch(commandBuffer, workgroup_count, 1, 1);
 								{
 									VkBufferMemoryBarrier memoryBarrier = {};
 									memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -553,6 +535,25 @@ namespace Charon {
 				}
 			}
 
+		}
+
+		// Swap alive lists
+		{
+			m_ParticleSimulationWriteDescriptors[1].dstBinding = (frame % 2 == 0) ? 1 : 2;
+			m_ParticleSimulationWriteDescriptors[2].dstBinding = (frame % 2 == 0) ? 2 : 1;
+
+			if (frame % 2 == 0)
+			{
+			//	m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
+				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
+			}
+			else
+			{
+			//	m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
+				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
+			}
+
+			frame++;
 		}
 
 	}
