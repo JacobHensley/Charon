@@ -20,7 +20,7 @@
 #define eBigFlip       2
 #define eBigDisperse   3
 
-layout(local_size_x_id = 1) in; // Set value for local_size_x via specialization constant with id 1
+//layout(local_size_x_id = 1) in; // Set value for local_size_x via specialization constant with id 1
 
 struct Particle
 {
@@ -57,11 +57,12 @@ layout(binding = 2) uniform CameraBuffer
 layout (binding = 3) uniform Parameters {
 	uint h;
 	uint algorithm;
+	uint workgroupSizeX;
 } parameters;
 
 // Workgroup local memory. We use this to minimise round-trips to global memory.
 // It allows us to evaluate a sorting network of up to 1024 with one shader invocation.
-shared uint local_value[gl_WorkGroupSize.x * 2];
+shared uint local_value[512 * 2];
 
 // Color-aware comparison: returns true if left is brighter than right
 // Note that we do our luminance comparisons in OK Lab color space - this
@@ -184,14 +185,16 @@ void local_bitonic_merge_sort_example(uint h){
 	}
 }
 
+layout(local_size_x = 512) in;
 void main(){
 
 	uint t = gl_LocalInvocationID.x;
-
+	if (t > parameters.workgroupSizeX * 2)
+		return;
 
 	uint offset = gl_WorkGroupSize.x * 2 * gl_WorkGroupID.x; // we can use offset if we have more than one invocation.
 
-	if (parameters.algorithm <= eLocalDisperse){
+	if (parameters.algorithm <= eLocalDisperse) {
 		// In case this shader executes a `local_` algorithm, we must 
 		// first populate the workgroup's local memory.
 		//

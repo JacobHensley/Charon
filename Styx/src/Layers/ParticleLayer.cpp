@@ -33,7 +33,7 @@ namespace Charon {
 		m_Emitter.VelocityRandomness = 0.0025f;
 		m_Emitter.Gravity = 0.005f;
 		m_Emitter.MaxParticles = 1025;
-		m_Emitter.EmissionQuantity = 100;
+		m_Emitter.EmissionQuantity = 0;// 100;
 		m_Emitter.Time = -10.0f;
 		m_Emitter.DeltaTime= -8.5f;
 		m_Emitter.InitialRotation = glm::vec3(0.0f);
@@ -45,7 +45,7 @@ namespace Charon {
 		m_SortParameters.h = 0;
 		m_SortParameters.algorithm = 0;
 		
-		m_Count = 50.0f;
+		m_Count = 0;// 50.0f;
 
 		// Shaders
 		m_ParticleShaders.Begin = CreateRef<Shader>("assets/shaders/particle/ParticleBegin.shader");
@@ -258,6 +258,11 @@ namespace Charon {
 
 		m_Camera->Update();
 
+		if (m_Pause && !m_NextFrame)
+			return;
+
+		m_NextFrame = false;
+
 		// Upload gradient points
 		const auto& marks = m_ColorLifetimeGradient.getMarks();
 		m_Emitter.GradientPointCount = marks.size();
@@ -300,6 +305,28 @@ namespace Charon {
 			m_BurstIntervalCount = m_BurstInterval;
 		}
 
+		// Swap alive lists
+		{
+			m_ParticleSimulationWriteDescriptors[1].dstBinding = (frame % 2 == 0) ? 1 : 2;
+			m_ParticleSimulationWriteDescriptors[2].dstBinding = (frame % 2 == 0) ? 2 : 1;
+
+			if (frame % 2 == 0)
+			{
+				//	m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
+				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
+				m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
+
+			}
+			else
+			{
+				//	m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
+				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
+				m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
+			}
+
+			frame++;
+		}
+
 		// Update particle simulation write descriptors
 		{
 			VkDescriptorSetAllocateInfo computeDescriptorSetAllocateInfo{};
@@ -330,63 +357,73 @@ namespace Charon {
 
 		// Particle compute
 		{
-			// Particle Begin
+			if (m_Emit10)
 			{
-				VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+				// Particle Begin
+				{
+					VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-				vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Begin->GetPipeline());
-				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Begin->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
-				vkCmdDispatch(commandBuffer, 1, 1, 1);
+					vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Begin->GetPipeline());
+					vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Begin->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
+					vkCmdDispatch(commandBuffer, 1, 1, 1);
 
-				device->FlushCommandBuffer(commandBuffer, true);
-			}
+					device->FlushCommandBuffer(commandBuffer, true);
+				}
 
-			// Particle Emit
-			{
-				VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+				// Particle Emit
 
-				vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Emit->GetPipeline());
-				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Emit->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
+				{
+					VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-				VkDeviceSize offset = { 0 };
-				vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
+					vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Emit->GetPipeline());
+					vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Emit->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
 
-				device->FlushCommandBuffer(commandBuffer, true);
-			}
+					VkDeviceSize offset = { 0 };
+					//vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
+					vkCmdDispatch(commandBuffer, 1, 1, 1);
+
+					device->FlushCommandBuffer(commandBuffer, true);
+				}
 
 
-			// Particle Simulate
-			{
-				VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+				// Particle Simulate
+				if (m_Emit10)
+				{
+					VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-				vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Simulate->GetPipeline());
-				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Simulate->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
+					vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Simulate->GetPipeline());
+					vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Simulate->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
 
-				VkDeviceSize offset = { offsetof(IndirectDrawBuffer, DispatchSimulation) };
-				vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
+					VkDeviceSize offset = { offsetof(IndirectDrawBuffer, DispatchSimulation) };
+					//vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
+					vkCmdDispatch(commandBuffer, 1, 1, 1);
 
-				device->FlushCommandBuffer(commandBuffer, true);
-			}
 
-			// Particle End
-			{
-				VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+					device->FlushCommandBuffer(commandBuffer, true);
+				}
 
-				vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.End->GetPipeline());
-				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.End->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
-				vkCmdDispatch(commandBuffer, 1, 1, 1);
+				// Particle End
+				{
+					VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-				device->FlushCommandBuffer(commandBuffer, true);
+					vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.End->GetPipeline());
+					vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.End->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
+					vkCmdDispatch(commandBuffer, 1, 1, 1);
+
+					device->FlushCommandBuffer(commandBuffer, true);
+				}
 			}
 
 			// Particle sort
+			uint32_t arrayCount = 0;
 			{
-				uint32_t arrayCount = 0;
-				{
-					ScopedMap<CounterBuffer, StorageBuffer> newCounterBuffer(m_ParticleBuffers.CounterBuffer);
-					arrayCount = newCounterBuffer->AliveCount_AfterSimulation;
-				}
+				ScopedMap<CounterBuffer, StorageBuffer> newCounterBuffer(m_ParticleBuffers.CounterBuffer);
+				arrayCount = newCounterBuffer->AliveCount_AfterSimulation;
+				m_ParticleCount = newCounterBuffer->AliveCount_AfterSimulation;
+			}
 
+			if (m_Sort)
+			{
 				if (arrayCount > 1)
 				{
 
@@ -421,6 +458,7 @@ namespace Charon {
 						ScopedMap<SortParameters, UniformBuffer> sortParamsBuffer(m_ParticleBuffers.SortParameters);
 						sortParamsBuffer->algorithm = eLocalBitonicMergeSortExample;
 						sortParamsBuffer->h = h;
+						sortParamsBuffer->workgroupSizeX = workgroup_size_x;
 					}
 					vkCmdDispatch(commandBuffer, workgroup_count, 1, 1);
 
@@ -537,25 +575,7 @@ namespace Charon {
 
 		}
 
-		// Swap alive lists
-		{
-			m_ParticleSimulationWriteDescriptors[1].dstBinding = (frame % 2 == 0) ? 1 : 2;
-			m_ParticleSimulationWriteDescriptors[2].dstBinding = (frame % 2 == 0) ? 2 : 1;
-
-			if (frame % 2 == 0)
-			{
-			//	m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
-				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
-			}
-			else
-			{
-			//	m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
-				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
-			}
-
-			frame++;
-		}
-
+		
 	}
 
 	void ParticleLayer::OnRender()
@@ -608,6 +628,9 @@ namespace Charon {
 		}
 
 		renderer->EndScene();
+
+		
+
 	}
 
 	void ParticleLayer::OnImGUIRender()
@@ -617,6 +640,47 @@ namespace Charon {
 		// Particle Settings Panel
 		{
 			ImGui::Begin("Particle settings");
+
+			ImGui::Checkbox("Sort", &m_Sort);
+			ImGui::Checkbox("Emit 10", &m_Emit10);
+
+			if (ImGui::CollapsingHeader("Stats"), ImGuiTreeNodeFlags_DefaultOpen)
+			{
+				ImGui::Text("Particle Count: %d", m_ParticleCount);
+			}
+
+			if (m_Pause)
+			{
+				if (ImGui::Button("Play"))
+					m_Pause = false;
+				ImGui::SameLine();
+				if (ImGui::Button("Next Frame"))
+					m_NextFrame = true;
+			}
+			else
+			{
+				if (ImGui::Button("Pause"))
+					m_Pause = true;
+			}
+
+
+			if (ImGui::Button("Dump Buffer 0"))
+			{
+				ScopedMap<uint32_t, StorageBuffer> buffer0(m_ParticleBuffers.AliveBufferPreSimulate);
+				for (int i = 0; i < m_MaxParticles; i+=4)
+				{
+					std::cout << buffer0[i] << ' ' << buffer0[i+1] << ' ' << buffer0[i + 2] << ' ' << buffer0[i + 3] << '\n';
+				}
+			}
+
+			if (ImGui::Button("Dump Buffer 1"))
+			{
+				ScopedMap<uint32_t, StorageBuffer> buffer0(m_ParticleBuffers.AliveBufferPostSimulate);
+				for (int i = 0; i < m_MaxParticles; i += 4)
+				{
+					std::cout << buffer0[i] << ' ' << buffer0[i + 1] << ' ' << buffer0[i + 2] << ' ' << buffer0[i + 3] << '\n';
+				}
+			}
 
 			if (ImGui::CollapsingHeader("Initial Settings"), ImGuiTreeNodeFlags_DefaultOpen)
 			{

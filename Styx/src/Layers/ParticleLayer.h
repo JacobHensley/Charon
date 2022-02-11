@@ -82,6 +82,7 @@ namespace Charon {
     {
 		uint32_t h;
 		uint32_t algorithm;
+		uint32_t workgroupSizeX;
     };
 
     class ParticleLayer : public Layer
@@ -103,7 +104,7 @@ namespace Charon {
         Emitter m_Emitter;
         SortParameters m_SortParameters;
 
-        inline static uint32_t m_MaxParticles = 1'000'000;
+        inline static uint32_t m_MaxParticles = 20;
         inline static uint32_t m_MaxIndices = m_MaxParticles * 6;
 
         float m_EmitCount = 0.0f;
@@ -116,6 +117,11 @@ namespace Charon {
 
         float m_SecondTimer = 1.0f;
         uint32_t m_ParticlesEmittedPerSecond = 0;
+        
+        // Stats
+        uint32_t m_ParticleCount = 0;
+
+        bool m_Sort = false;
 
         ImGradient m_ColorLifetimeGradient;
 
@@ -164,6 +170,11 @@ namespace Charon {
             Ref<IndexBuffer> IndexBuffer;
 			Ref<UniformBuffer> SortParameters;
         } m_ParticleBuffers;
+
+        // Debug stuff
+        bool m_Pause = false;
+        bool m_NextFrame = false;
+        bool m_Emit10 = false;
     };
 
 }
