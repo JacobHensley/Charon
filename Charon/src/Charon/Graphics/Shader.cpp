@@ -5,8 +5,63 @@
 #include <shaderc/shaderc.hpp>
 #include <spirv_cross.hpp>
 #include <spirv_common.hpp>
+#include <codecvt>
 
 namespace Charon {
+
+	static IDxcCompiler3* s_HLSLCompiler;
+	static IDxcUtils* s_HLSLUtils;
+	static IDxcIncludeHandler* s_DefaultIncludeHandler;
+
+	class CustomIncludeHandler : public IDxcIncludeHandler
+	{
+	public:
+		CustomIncludeHandler()
+		{
+		}
+
+		HRESULT STDMETHODCALLTYPE LoadSource(_In_ LPCWSTR pFilename, _COM_Outptr_result_maybenull_ IDxcBlob** ppIncludeSource) override
+		{
+			IDxcBlobEncoding* pEncoding;
+
+			// NOTE: This is the worst
+			std::wstring wstring(pFilename);
+			using convert_type = std::codecvt_utf8<wchar_t>;
+			std::wstring_convert<convert_type, wchar_t> converter;
+			std::string path = converter.to_bytes(wstring);
+
+			if (IncludedFiles.find(path) != IncludedFiles.end())
+			{
+				// Return empty string blob if this file has been included before
+				static const char nullStr[] = " ";
+				s_HLSLUtils->CreateBlob(nullStr, ARRAYSIZE(nullStr), CP_UTF8, &pEncoding);
+				*ppIncludeSource = pEncoding;
+				return S_OK;
+			}
+
+			HRESULT hr = s_HLSLUtils->LoadFile(pFilename, nullptr, &pEncoding);
+			if (SUCCEEDED(hr))
+			{
+				IncludedFiles.insert(path);
+				*ppIncludeSource = pEncoding;
+			}
+			else
+			{
+				*ppIncludeSource = nullptr;
+			}
+			return hr;
+		}
+
+		HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override
+		{
+			return s_DefaultIncludeHandler->QueryInterface(riid, ppvObject);
+		}
+
+		ULONG STDMETHODCALLTYPE AddRef(void) override { return 0; }
+		ULONG STDMETHODCALLTYPE Release(void) override { return 0; }
+
+		std::unordered_set<std::string> IncludedFiles;
+	};
 
 	namespace Utils {
 
@@ -36,6 +91,7 @@ namespace Charon {
 			return (VkShaderStageFlagBits)0;
 		}
 
+		// TODO: Fix issue with structs
 		static ShaderUniformType GetType(spirv_cross::SPIRType type)
 		{
 			spirv_cross::SPIRType::BaseType baseType = type.basetype;
@@ -77,14 +133,20 @@ namespace Charon {
 				return ShaderUniformType::BOOL;
 			}
 
-			CR_ASSERT(false, "Unknown Type");
 			return (ShaderUniformType)0;
 		}
 
 	}
 
 	Shader::Shader(const std::string& path)
-		: m_Path(path)
+		: m_Path(path), m_EntryPoint("main")
+	{
+		Init();
+		CR_LOG_INFO("Initialized Vulkan shader: {0}", m_Path);
+	}
+
+	Shader::Shader(const std::string& path, const std::string& entryPoint)
+		: m_Path(path), m_EntryPoint(entryPoint)
 	{
 		Init();
 		CR_LOG_INFO("Initialized Vulkan shader: {0}", m_Path);
@@ -107,23 +169,36 @@ namespace Charon {
 
 	void Shader::Init()
 	{
+		// TODO: Make this static
+		DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&s_HLSLCompiler));
+		DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&s_HLSLUtils));
+
 		m_ShaderSrc = SplitShaders(m_Path);
 		CR_ASSERT(m_ShaderSrc.size() >= 1, "Shader is empty or path is invalid");
 
-		bool result = CompileShaders(m_ShaderSrc);
+		// TODO: Save path as std::filesystem::path
+		std::filesystem::path path(m_Path);
+		bool result = false;
+		if (path.extension() == ".hlsl")
+		{
+			result = CompileHLSLShaders(m_ShaderSrc);
+		}
+		else
+		{
+			result = CompileGLSLShaders(m_ShaderSrc);
+		}
+
 		CR_ASSERT(result, "Failed to initialize shader")
 
 		CreateDescriptorSetLayouts();
 	}
 
-	bool Shader::CompileShaders(const std::unordered_map<ShaderStage, std::string>& shaderSrc)
+	bool Shader::CompileGLSLShaders(const std::unordered_map<ShaderStage, std::string>& shaderSrc)
 	{
 		// Setup compiler
 		shaderc::Compiler compiler;
 		shaderc::CompileOptions options;
 		options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
-
-		VkDevice logicalDevice = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
 
 		for (auto&& [stage, src] : m_ShaderSrc)
 		{
@@ -135,20 +210,23 @@ namespace Charon {
 				return false;
 			}
 
+			// Format data
 			const uint8_t* data = reinterpret_cast<const uint8_t*>(compilationResult.cbegin());
 			const uint8_t* dataEnd = reinterpret_cast<const uint8_t*>(compilationResult.cend());
 			uint32_t size = dataEnd - data;
 
 			std::vector<uint32_t> spirv(compilationResult.cbegin(), compilationResult.cend());
 
-			// Create shader module
+			VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
+
+			// Create shader module (TODO: Create function for this)
 			VkShaderModuleCreateInfo createInfo{};
 			createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 			createInfo.codeSize = size;
-			createInfo.pCode = reinterpret_cast<const uint32_t*>(data);
+			createInfo.pCode = spirv.data();
 
 			VkShaderModule shaderModule;
-			VK_CHECK_RESULT(vkCreateShaderModule(logicalDevice, &createInfo, nullptr, &shaderModule));
+			VK_CHECK_RESULT(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule));
 
 			// Create shader stage
 			VkPipelineShaderStageCreateInfo shaderStageInfo{};
@@ -157,10 +235,94 @@ namespace Charon {
 			shaderStageInfo.module = shaderModule;
 			shaderStageInfo.pName = "main";
 
-			// Save shader stage info
 			m_ShaderCreateInfo.push_back(shaderStageInfo);
 			ReflectShader(spirv, stage);
 		}
+
+		return true;
+	}
+
+	bool Shader::CompileHLSLShaders(const std::unordered_map<ShaderStage, std::string>& shaderSrc)
+	{
+		std::vector<const wchar_t*> arguments;
+
+		arguments.push_back(L"-spirv");
+		arguments.push_back(L"-fspv-target-env=vulkan1.2");
+
+		//Strip reflection data and pdbs (see later)
+		arguments.push_back(L"-Qstrip_debug");
+		arguments.push_back(L"-Qstrip_reflect");
+
+		arguments.push_back(L"-I /assets/shaders/Sorting");
+
+		arguments.push_back(DXC_ARG_WARNINGS_ARE_ERRORS);
+		arguments.push_back(DXC_ARG_DEBUG);
+		arguments.push_back(DXC_ARG_PACK_MATRIX_COLUMN_MAJOR);
+
+		for (const auto& [stage, shaderSrc] : shaderSrc)
+		{
+			std::wstring widestr = std::wstring(m_EntryPoint.begin(), m_EntryPoint.end());
+			const wchar_t* widecstr = widestr.c_str();
+
+			// Set entry point
+			arguments.push_back(L"-E");
+			arguments.push_back(widecstr);
+
+			// Set stage target (TODO: Add more stage options)
+			arguments.push_back(L"-T");
+			arguments.push_back(L"cs_6_2");
+
+			IDxcBlobEncoding* blobEncoding;
+			s_HLSLUtils->CreateBlob(shaderSrc.c_str(), shaderSrc.size(), CP_UTF8, &blobEncoding);
+
+			DxcBuffer sourceBuffer;
+			sourceBuffer.Ptr = blobEncoding->GetBufferPointer();
+			sourceBuffer.Size = blobEncoding->GetBufferSize();
+			sourceBuffer.Encoding = 0;
+
+			CustomIncludeHandler includeHandler = CustomIncludeHandler();
+
+			IDxcResult* pCompileResult;
+			s_HLSLCompiler->Compile(&sourceBuffer, arguments.data(), (uint32_t)arguments.size(), &includeHandler, IID_PPV_ARGS(&pCompileResult));
+
+			IDxcBlobUtf8* pErrors;
+			pCompileResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&pErrors), nullptr);
+			if (pErrors && pErrors->GetStringLength() > 0)
+			{
+				CR_LOG_CRITICAL((char*)pErrors->GetBufferPointer());
+				return false;
+			}
+
+			IDxcBlob* pResult;
+			pCompileResult->GetResult(&pResult);
+
+			size_t size = pResult->GetBufferSize();
+			std::vector<uint32_t> spirv(size / sizeof(uint32_t));
+			std::memcpy(spirv.data(), pResult->GetBufferPointer(), size);
+
+			VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
+
+			// Create shader module (TODO: Create function for this)
+			VkShaderModuleCreateInfo createInfo{};
+			createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+			createInfo.codeSize = size;
+			createInfo.pCode = spirv.data();
+
+			VkShaderModule shaderModule;
+			VK_CHECK_RESULT(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule));
+
+			// Create shader stage
+			VkPipelineShaderStageCreateInfo shaderStageInfo{};
+			shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			shaderStageInfo.stage = Utils::ShaderStageToVulkan(stage);;
+			shaderStageInfo.module = shaderModule;
+			shaderStageInfo.pName = m_EntryPoint.c_str();
+
+			m_ShaderCreateInfo.push_back(shaderStageInfo);
+			ReflectShader(spirv, stage);
+		}
+
+		return true;
 	}
 
 	void Shader::ReflectShader(const std::vector<uint32_t>& data, ShaderStage stage)
@@ -347,6 +509,7 @@ namespace Charon {
 		return 0;
 	}
 
+	// TODO: Pick a way to support HLSL stages
 	std::unordered_map<ShaderStage, std::string> Shader::SplitShaders(const std::string& path)
 	{
 		std::unordered_map<ShaderStage, std::string> result;

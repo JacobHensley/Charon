@@ -9,10 +9,10 @@
 
 namespace Charon {
 
-#define eLocalBitonicMergeSortExample      0
-#define eLocalDisperse 1
-#define eBigFlip       2
-#define eBigDisperse   3
+	#define eLocalBitonicMergeSortExample      0
+	#define eLocalDisperse 1
+	#define eBigFlip       2
+	#define eBigDisperse   3
 
 	ParticleLayer::ParticleLayer()
 		: Layer("Particle")
@@ -26,6 +26,9 @@ namespace Charon {
 
 	void ParticleLayer::Init()
 	{
+		m_HLSLShader = CreateRef<Shader>("assets/shaders/sorting/ParallelSortCS.hlsl", "FPS_SetupIndirectParameters");
+	//	m_HLSLShader = CreateRef<Shader>("assets/shaders/sorting/ParallelSortCS.hlsl", "FPS_Scatter");
+
 		// Emitter settings
 		m_Emitter.Position = glm::vec3(0.0f);
 		m_Emitter.Direction = normalize(glm::vec3(0.0f, 1.0f, 0.0f));

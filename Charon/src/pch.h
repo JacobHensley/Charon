@@ -9,6 +9,7 @@
 #include <functional>
 #include <cstdint>
 #include <random>
+#include <filesystem>
 
 #include <string>
 #include <sstream>

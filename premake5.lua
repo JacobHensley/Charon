@@ -15,24 +15,26 @@ workspace "Charon"
 		"MultiProcessorCompile"
 	}
 
-outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
+	outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
-IncludeDir = {}
-IncludeDir["VulkanSDK"]         = VK_SDK_PATH .. "/include"
-IncludeDir["GLFW"]              = "Charon/vendor/GLFW/include"
-IncludeDir["glm"]               = "Charon/vendor/glm"
-IncludeDir["spdlog"]            = "Charon/vendor/spdlog/include"
-IncludeDir["VMA"]               = "Charon/vendor/VMA/include"
-IncludeDir["SPIRVCross"]        = "Charon/vendor/SPIRV-Cross"
-IncludeDir["imgui"]             = "Charon/vendor/imgui"
-IncludeDir["stb_image"]         = "Charon/vendor/stb"
-IncludeDir["yamlCPP"] 			= "Charon/vendor/yaml-cpp/include"
-IncludeDir["EnTT"] 				= "Charon/vendor/entt/single_include"
+	IncludeDir = {}
+	IncludeDir["VulkanSDK"]         = VK_SDK_PATH .. "/include"
+	IncludeDir["GLFW"]              = "Charon/vendor/GLFW/include"
+	IncludeDir["glm"]               = "Charon/vendor/glm"
+	IncludeDir["spdlog"]            = "Charon/vendor/spdlog/include"
+	IncludeDir["VMA"]               = "Charon/vendor/VMA/include"
+	IncludeDir["SPIRVCross"]        = "Charon/vendor/SPIRV-Cross"
+	IncludeDir["imgui"]             = "Charon/vendor/imgui"
+	IncludeDir["stb_image"]         = "Charon/vendor/stb"
+	IncludeDir["yamlCPP"] 			= "Charon/vendor/yaml-cpp/include"
+	IncludeDir["EnTT"] 				= "Charon/vendor/entt/single_include"
+	IncludeDir["DXC"] 				= "Charon/vendor/DXC/include"
+	IncludeDir["FFXParallelSort"] 	= "Charon/vendor/FidelityFX-ParallelSort"
 
-include "Charon/vendor/GLFW"
-include "Charon/vendor/SPIRV-Cross"
-include "Charon/vendor/imgui"
-include "Charon/vendor/yaml-cpp"
+	include "Charon/vendor/GLFW"
+	include "Charon/vendor/SPIRV-Cross"
+	include "Charon/vendor/imgui"
+	include "Charon/vendor/yaml-cpp"
 
 project "Charon"
 	location "Charon"
@@ -58,6 +60,8 @@ project "Charon"
 		"%{prj.name}/vendor/tinygltf/**.cpp",
 		"%{prj.name}/vendor/tinygltf/**.hpp",
 		"%{prj.name}/vendor/tinygltf/**.h",
+		-- FidelityFX-ParallelSort
+		"%{prj.name}/vendor/FidelityFX-ParallelSort/ffx-parallelsort/**.h",
 	}
 
 	includedirs
@@ -74,6 +78,8 @@ project "Charon"
 		"%{IncludeDir.stb_image}",
 		"%{IncludeDir.yamlCPP}",
 		"%{IncludeDir.EnTT}",
+		"%{IncludeDir.DXC}",
+		"%{IncludeDir.FFXParallelSort}",
 	}
 
 	filter "system:windows"
@@ -119,6 +125,8 @@ project "Styx"
 		"%{IncludeDir.stb_image}",
 		"%{IncludeDir.yamlCPP}",
 		"%{IncludeDir.EnTT}",
+		"%{IncludeDir.DXC}",
+		"%{IncludeDir.FFXParallelSort}",
 	}
 
 	links 
@@ -128,6 +136,7 @@ project "Styx"
 		"SPIRV-Cross",
 		"imgui",
 		"yaml-cpp",
+		"Charon/vendor/DXC/lib/dxcompiler.lib",
 		VK_SDK_PATH .. "/Lib/vulkan-1.lib",
 		VK_SDK_PATH .. "/Lib/shaderc_shared.lib",
 	}

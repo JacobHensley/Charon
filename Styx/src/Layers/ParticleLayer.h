@@ -171,6 +171,8 @@ namespace Charon {
 			Ref<UniformBuffer> SortParameters;
         } m_ParticleBuffers;
 
+        Ref<Shader> m_HLSLShader;
+
         // Debug stuff
         bool m_Pause = false;
         bool m_NextFrame = false;

@@ -1,6 +1,9 @@
 #pragma once
 #include "Charon/Asset/Asset.h"
 #include <vulkan/vulkan.h>
+#include <unknwn.h>
+#include <combaseapi.h>
+#include <dxc/dxcapi.h>
 
 namespace Charon {
 
@@ -64,6 +67,7 @@ namespace Charon {
 	{
 	public:
 		Shader(const std::string& path);
+		Shader(const std::string& path, const std::string& entryPoint);
 		~Shader();
 
 	public:
@@ -79,13 +83,16 @@ namespace Charon {
 
 	private:
 		void Init();
-		bool CompileShaders(const std::unordered_map<ShaderStage, std::string>& shaderSrc);
+		bool CompileGLSLShaders(const std::unordered_map<ShaderStage, std::string>& shaderSrc);
+		bool CompileHLSLShaders(const std::unordered_map<ShaderStage, std::string>& shaderSrc);
 		void ReflectShader(const std::vector<uint32_t>& data, ShaderStage stage);
 		void CreateDescriptorSetLayouts();
+		void CreateShaderModules(ShaderStage stage, const uint32_t* data, uint32_t size, const std::string& entryPoint);
 		std::unordered_map<ShaderStage, std::string> SplitShaders(const std::string& path);
 
 	private:
 		const std::string m_Path;
+		const std::string m_EntryPoint;
 		std::unordered_map<ShaderStage, std::string> m_ShaderSrc;
 
 		std::vector<UniformBufferDescription> m_UniformBufferDescriptions;
