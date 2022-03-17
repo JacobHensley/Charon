@@ -67,7 +67,8 @@ namespace Charon {
 	{
 	public:
 		Shader(const std::string& path);
-		Shader(const std::string& path, const std::string& entryPoint);
+		Shader(std::string_view path, std::string_view entryPoint);
+		Shader(std::string_view path, std::string_view entryPoint, const std::vector<std::wstring>& defines);
 		~Shader();
 
 	public:
@@ -94,6 +95,8 @@ namespace Charon {
 		const std::string m_Path;
 		const std::string m_EntryPoint;
 		std::unordered_map<ShaderStage, std::string> m_ShaderSrc;
+
+		const std::vector<std::wstring>& m_Defines;
 
 		std::vector<UniformBufferDescription> m_UniformBufferDescriptions;
 		std::vector<StorageBufferDescription> m_StorageBufferDescriptions;

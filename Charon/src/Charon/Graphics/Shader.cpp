@@ -139,14 +139,21 @@ namespace Charon {
 	}
 
 	Shader::Shader(const std::string& path)
-		: m_Path(path), m_EntryPoint("main")
+		: m_Path(path), m_EntryPoint("main"), m_Defines({})
 	{
 		Init();
 		CR_LOG_INFO("Initialized Vulkan shader: {0}", m_Path);
 	}
 
-	Shader::Shader(const std::string& path, const std::string& entryPoint)
-		: m_Path(path), m_EntryPoint(entryPoint)
+	Shader::Shader(std::string_view path, std::string_view entryPoint)
+		: m_Path(path), m_EntryPoint(entryPoint), m_Defines({})
+	{
+		Init();
+		CR_LOG_INFO("Initialized Vulkan shader: {0}", m_Path);
+	}
+
+	Shader::Shader(std::string_view path, std::string_view entryPoint, const std::vector<std::wstring>& defines)
+		: m_Path(path), m_EntryPoint(entryPoint), m_Defines(defines)
 	{
 		Init();
 		CR_LOG_INFO("Initialized Vulkan shader: {0}", m_Path);
@@ -258,6 +265,12 @@ namespace Charon {
 		arguments.push_back(DXC_ARG_WARNINGS_ARE_ERRORS);
 		arguments.push_back(DXC_ARG_DEBUG);
 		arguments.push_back(DXC_ARG_PACK_MATRIX_COLUMN_MAJOR);
+
+		for (const std::wstring& define : m_Defines)
+		{
+			arguments.push_back(L"-D");
+			arguments.push_back(define.c_str());
+		}
 
 		for (const auto& [stage, shaderSrc] : shaderSrc)
 		{

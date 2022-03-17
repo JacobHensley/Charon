@@ -15,7 +15,7 @@ namespace Charon {
 	#define eBigDisperse   3
 
 	ParticleLayer::ParticleLayer()
-		: Layer("Particle")
+		: Layer("Particle"), m_ParticleSort(10000)
 	{
 		Init();
 	}
@@ -26,8 +26,7 @@ namespace Charon {
 
 	void ParticleLayer::Init()
 	{
-		m_HLSLShader = CreateRef<Shader>("assets/shaders/sorting/ParallelSortCS.hlsl", "FPS_SetupIndirectParameters");
-	//	m_HLSLShader = CreateRef<Shader>("assets/shaders/sorting/ParallelSortCS.hlsl", "FPS_Scatter");
+		m_ParticleSort.Init();
 
 		// Emitter settings
 		m_Emitter.Position = glm::vec3(0.0f);

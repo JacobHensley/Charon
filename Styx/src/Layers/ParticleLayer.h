@@ -9,6 +9,8 @@
 #include "UI/ViewportPanel.h"
 #include "UI/ImGuiColorGradient.h"
 
+#include "Particles/ParticleSort.h"
+
 namespace Charon {
 
     struct Particle
@@ -137,6 +139,7 @@ namespace Charon {
 		VkDescriptorSet m_ParticleSortDescriptorSet = nullptr;
 		std::vector<VkWriteDescriptorSet> m_ParticleSortWriteDescriptors;
 
+        ParticleSort m_ParticleSort;
 
         struct ParticleShaders
         {
@@ -170,8 +173,6 @@ namespace Charon {
             Ref<IndexBuffer> IndexBuffer;
 			Ref<UniformBuffer> SortParameters;
         } m_ParticleBuffers;
-
-        Ref<Shader> m_HLSLShader;
 
         // Debug stuff
         bool m_Pause = false;

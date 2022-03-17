@@ -104,6 +104,7 @@ namespace Charon {
 	}
 
 	StorageBuffer::StorageBuffer(uint32_t size, bool cpu, bool vertex)
+		: m_Size(size)
 	{
 		// Create buffer info
 		VkBufferCreateInfo vertexBufferCreateInfo = {};
@@ -116,6 +117,24 @@ namespace Charon {
 		// Allocate memory
 		VulkanAllocator allocator("StorageBuffer");
 		m_BufferInfo.Allocation = allocator.AllocateBuffer(vertexBufferCreateInfo, cpu ? VMA_MEMORY_USAGE_CPU_ONLY : VMA_MEMORY_USAGE_CPU_TO_GPU, m_BufferInfo.Buffer);
+
+		m_DescriptorBufferInfo.buffer = m_BufferInfo.Buffer;
+		m_DescriptorBufferInfo.offset = 0;
+		m_DescriptorBufferInfo.range = size;
+	}
+
+	StorageBuffer::StorageBuffer(uint32_t size, uint32_t usageFlags)
+		: m_Size(size)
+	{
+		// Create buffer info
+		VkBufferCreateInfo vertexBufferCreateInfo = {};
+		vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		vertexBufferCreateInfo.size = size;
+		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | usageFlags;
+
+		// Allocate memory
+		VulkanAllocator allocator("StorageBuffer");
+		m_BufferInfo.Allocation = allocator.AllocateBuffer(vertexBufferCreateInfo, VMA_MEMORY_USAGE_CPU_TO_GPU, m_BufferInfo.Buffer);
 
 		m_DescriptorBufferInfo.buffer = m_BufferInfo.Buffer;
 		m_DescriptorBufferInfo.offset = 0;
