@@ -78,7 +78,7 @@ namespace Charon {
 		inline const std::vector<ShaderResource>& GetShaderResourceDescriptions() { return m_ShaderResourceDescriptions; }
 
 		inline const std::vector<VkDescriptorSetLayout>& GetDescriptorSetLayouts() { return m_DescriptorSetLayouts; }
-		inline const VkDescriptorSetLayout GetDescriptorSetLayout(uint32_t set) { return m_DescriptorSetLayouts; }
+		inline const VkDescriptorSetLayout GetDescriptorSetLayout(uint32_t set) { return m_DescriptorSetLayoutMap.at(set); }
 		inline const std::vector<VkPipelineShaderStageCreateInfo>& GetShaderCreateInfo() { return m_ShaderCreateInfo; };
 
 		static uint32_t GetTypeSize(ShaderUniformType type);
@@ -105,6 +105,7 @@ namespace Charon {
 		std::vector<ShaderResource> m_ShaderResourceDescriptions;
 
 		std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
+		std::unordered_map<int, VkDescriptorSetLayout> m_DescriptorSetLayoutMap;
 		std::vector<VkPipelineShaderStageCreateInfo> m_ShaderCreateInfo;
 	};
 

@@ -498,9 +498,10 @@ namespace Charon {
 			}
 
 			ID++;
-
+			 
 			VkDescriptorSetLayout& descriptorSetLayout = m_DescriptorSetLayouts.emplace_back();
 			VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout));
+			m_DescriptorSetLayoutMap[descriptorSetIndex] = descriptorSetLayout;
 		}
 	}
 

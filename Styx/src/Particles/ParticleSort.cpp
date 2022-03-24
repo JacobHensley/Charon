@@ -88,24 +88,22 @@ namespace Charon {
         m_DstPayloadBuffers[0] = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount);
         m_DstPayloadBuffers[1] = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount);
 
-
-
         // Descriptors
         VkDescriptorSetAllocateInfo allocInfo = {};
 
-        m_SortDescriptorSetConstants[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayouts()[0]);
-        m_SortDescriptorSetConstants[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayouts()[0]);
-        m_SortDescriptorSetConstants[2] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayouts()[0]);
+        m_SortDescriptorSetConstants[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(0));
+        m_SortDescriptorSetConstants[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(0));
+        m_SortDescriptorSetConstants[2] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(0));
 
-        m_SortDescriptorSetInputOutput[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayouts()[2]);
-        m_SortDescriptorSetInputOutput[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayouts()[2]);
+        m_SortDescriptorSetInputOutput[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(2));
+        m_SortDescriptorSetInputOutput[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(2));
         
-        m_SortDescriptorSetScanSets[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Scan.Shader->GetDescriptorSetLayouts()[3]);
-        m_SortDescriptorSetScanSets[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Scan.Shader->GetDescriptorSetLayouts()[3]);
+        m_SortDescriptorSetScanSets[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Scan.Shader->GetDescriptorSetLayout(3));
+        m_SortDescriptorSetScanSets[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Scan.Shader->GetDescriptorSetLayout(3));
 
-        m_SortDescriptorSetScratch = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayouts()[4]);
+        m_SortDescriptorSetScratch = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(4));
         
-        m_SortDescriptorSetIndirect = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayouts()[5]);
+    //    m_SortDescriptorSetIndirect = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_ScanAdd.Shader->GetDescriptorSetLayout(5));
 
 		VkBuffer BufferMaps[4];
 
@@ -140,9 +138,42 @@ namespace Charon {
 		BufferMaps[1] = m_IndirectConstantBuffer->GetBuffer();
 		BufferMaps[2] = m_IndirectCountScatterArgs->GetBuffer();
 		BufferMaps[3] = m_IndirectReduceScanArgs->GetBuffer();
-		BindUAVBuffer(BufferMaps, m_SortDescriptorSetIndirect, 0, 4);
+	//	BindUAVBuffer(BufferMaps, m_SortDescriptorSetIndirect, 0, 4);
 
-		__debugbreak();
+        // Test
+        {
+            Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
+
+            VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+            VkBufferCopy copyInfo = { 0 };
+            copyInfo.srcOffset = 0;
+            copyInfo.size = sizeof(uint32_t) * m_NumKeys;
+            vkCmdCopyBuffer(commandBuffer, m_SortKeyBuffer->GetBuffer(), m_DstKeyBuffers[0]->GetBuffer(), 1, &copyInfo);
+            vkCmdCopyBuffer(commandBuffer, m_ParticleIndexBuffer->GetBuffer(), m_DstPayloadBuffers[0]->GetBuffer(), 1, &copyInfo);
+            device->FlushCommandBuffer(commandBuffer, true);
+
+            {
+                ScopedMap<uint32_t, StorageBuffer> buffer(m_DstKeyBuffers[0]);
+                for (int i = 0;i < m_NumKeys;i++)
+                {
+                    CR_LOG_DEBUG("Key: {0}", buffer[i]);
+                }
+            }
+
+            {
+                ScopedMap<uint32_t, StorageBuffer> buffer(m_DstPayloadBuffers[0]);
+                for (int i = 0; i < m_NumKeys; i++)
+                {
+                    CR_LOG_DEBUG("Value: {0}", buffer[i]);
+                }
+            }
+
+            VkCommandBuffer sortCommandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+            Sort(sortCommandBuffer, false, false);
+            device->FlushCommandBuffer(sortCommandBuffer, true);
+
+            __debugbreak();
+        }
 	}
 
 	void ParticleSort::CompileAndCreatePipeline(SortPipeline& pipeline, std::string_view entryPoint, const std::string& define)
