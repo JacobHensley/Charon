@@ -258,4 +258,23 @@ namespace Charon {
 		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &result));
 		return result;
 	}
+
+	VkDescriptorSet Renderer::AllocateDescriptorSet(VkDescriptorSetLayout descLayout)
+	{
+		Ref<SwapChain> swapChain = Application::GetApp().GetVulkanSwapChain();
+		uint32_t frameIndex = swapChain->GetCurrentBufferIndex();
+		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
+
+		VkDescriptorSetAllocateInfo allocInfo;
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.pNext = NULL;
+		allocInfo.descriptorPool = s_Instance->m_DescriptorPools[frameIndex];
+		allocInfo.descriptorSetCount = 1;
+		allocInfo.pSetLayouts = &descLayout;
+
+		VkDescriptorSet descriptorSet;
+		VkResult res = vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet);
+		return descriptorSet;
+	}
+
 }

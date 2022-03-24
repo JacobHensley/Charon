@@ -53,6 +53,7 @@ namespace Charon {
 		Ref<Framebuffer> GetFramebuffer() { return m_Framebuffer; }
 
 		static VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetAllocateInfo allocInfo);
+		static VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetLayout descLayout);
 
 		Ref<UniformBuffer> GetCameraUB() { return m_CameraUniformBuffer; }
 	private:

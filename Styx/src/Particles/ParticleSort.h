@@ -33,13 +33,17 @@ namespace Charon {
 		Ref<Shader> m_ParallelSortShader;
 
 		uint32_t m_MaxParticles = 0;
+		uint32_t m_NumKeys = 0;
 
+		Ref<UniformBuffer> m_ConstantBuffer;
 		Ref<StorageBuffer> m_IndirectKeyCounts;
 		Ref<StorageBuffer> m_IndirectCountScatterArgs, m_IndirectReduceScanArgs, m_IndirectConstantBuffer;
 
 		// Radix sort scratch buffers
 		uint32_t m_ScratchBufferSize, m_ReducedScratchBufferSize;
 		Ref<StorageBuffer> m_FPSScratchBuffer, m_FPSReducedScratchBuffer;
+
+		VkPipelineLayout m_SortPipelineLayout = nullptr;
 
 		struct ComputePipelines
 		{
@@ -59,6 +63,16 @@ namespace Charon {
 			std::vector<VkWriteDescriptorSet> SumTable; // set 4
 			std::vector<VkWriteDescriptorSet> IndirectBuffers; // set 5
 		} m_WriteDescriptors;
+
+		VkDescriptorSet m_SortDescriptorSetConstants[3];
+		VkDescriptorSet m_SortDescriptorSetInputOutput[2];
+		VkDescriptorSet m_SortDescriptorSetScanSets[2];
+		VkDescriptorSet m_SortDescriptorSetScratch;
+		VkDescriptorSet m_SortDescriptorSetIndirect;
+
+		// Dummy data
+		Ref<StorageBuffer> m_SortKeyBuffer, m_ParticleIndexBuffer;
+		Ref<StorageBuffer> m_DstKeyBuffers[2], m_DstPayloadBuffers[2];
 	};
 
 }
