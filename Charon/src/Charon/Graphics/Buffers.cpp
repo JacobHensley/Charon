@@ -123,7 +123,7 @@ namespace Charon {
 		m_DescriptorBufferInfo.range = size;
 	}
 
-	StorageBuffer::StorageBuffer(uint32_t size, uint32_t usageFlags)
+	StorageBuffer::StorageBuffer(uint32_t size, VkBufferUsageFlagBits usageFlags)
 		: m_Size(size)
 	{
 		// Create buffer info

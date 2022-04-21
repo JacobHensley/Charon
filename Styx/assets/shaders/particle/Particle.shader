@@ -49,7 +49,6 @@ void main()
     vec3 camRightWS = { u_CameraBuffer.View[0][0],  u_CameraBuffer.View[1][0], u_CameraBuffer.View[2][0] }; // X
     vec3 camUpWS = { u_CameraBuffer.View[0][1],  u_CameraBuffer.View[1][1], u_CameraBuffer.View[2][1] };    // Y
 
-    // NOTE: May not be efficient becuse of doing this per vertex instead per particle
     c_Vertices[0] = (camRightWS * -0.5 + camUpWS * -0.5);
     c_Vertices[1] = (camRightWS * 0.5 + camUpWS * -0.5);
     c_Vertices[2] = (camRightWS * 0.5 + camUpWS * 0.5);

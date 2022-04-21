@@ -136,7 +136,7 @@ namespace Charon {
 	{
 	public:
 		StorageBuffer(uint32_t size, bool cpu = false, bool vertex = false);
-		StorageBuffer(uint32_t size, uint32_t usageFlags);
+		StorageBuffer(uint32_t size, VkBufferUsageFlagBits usageFlags);
 		~StorageBuffer();
 
 	public:

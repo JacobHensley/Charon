@@ -9,11 +9,6 @@
 
 namespace Charon {
 
-	#define eLocalBitonicMergeSortExample      0
-	#define eLocalDisperse 1
-	#define eBigFlip       2
-	#define eBigDisperse   3
-
 	ParticleLayer::ParticleLayer()
 		: Layer("Particle"), m_ParticleSort(10000)
 	{
@@ -43,25 +38,20 @@ namespace Charon {
 		m_Emitter.InitialLifetime = 3.0f;
 		m_Emitter.InitialSpeed = 5.0f;
 		m_Emitter.InitialColor = glm::vec3(1.0f, 0.0f, 0.0f);
-
-		m_SortParameters.h = 0;
-		m_SortParameters.algorithm = 0;
 		
-		m_Count = 0;// 50.0f;
+		m_Count = 0; // 50.0f;
 
 		// Shaders
 		m_ParticleShaders.Begin = CreateRef<Shader>("assets/shaders/particle/ParticleBegin.shader");
 		m_ParticleShaders.Emit = CreateRef<Shader>("assets/shaders/particle/ParticleEmit.shader");
 		m_ParticleShaders.Simulate = CreateRef<Shader>("assets/shaders/particle/ParticleSimulate.shader");
 		m_ParticleShaders.End = CreateRef<Shader>("assets/shaders/particle/ParticleEnd.shader");
-		m_ParticleShaders.Sort = CreateRef<Shader>("assets/shaders/particle/ParticleSort.shader");
 
 		// Pipelines
 		m_ParticlePipelines.Begin = CreateRef<VulkanComputePipeline>(m_ParticleShaders.Begin);
 		m_ParticlePipelines.Emit = CreateRef<VulkanComputePipeline>(m_ParticleShaders.Emit);
 		m_ParticlePipelines.Simulate = CreateRef<VulkanComputePipeline>(m_ParticleShaders.Simulate);
 		m_ParticlePipelines.End = CreateRef<VulkanComputePipeline>(m_ParticleShaders.End);
-		m_ParticlePipelines.Sort = CreateRef<VulkanComputePipeline>(m_ParticleShaders.Sort);
 
 		// Buffers
 		m_ParticleBuffers.ParticleBuffer = CreateRef<StorageBuffer>(sizeof(Particle) * m_MaxParticles);
@@ -70,10 +60,9 @@ namespace Charon {
 		m_ParticleBuffers.AliveBufferPostSimulate = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles);
 		m_ParticleBuffers.DeadBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles);
 		m_ParticleBuffers.CounterBuffer = CreateRef<StorageBuffer>(sizeof(CounterBuffer));
-		m_ParticleBuffers.IndirectDrawBuffer = CreateRef<StorageBuffer>(sizeof(IndirectDrawBuffer));
+		m_ParticleBuffers.IndirectDrawBuffer = CreateRef<StorageBuffer>(sizeof(IndirectDrawBuffer), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 		m_ParticleBuffers.VertexBuffer = CreateRef<StorageBuffer>(sizeof(ParticleVertex) * 4 * m_MaxParticles, false, true);
 		m_ParticleBuffers.IndexBuffer = CreateRef<IndexBuffer>(sizeof(uint32_t) * m_MaxIndices, m_MaxIndices);
-		m_ParticleBuffers.SortParameters = CreateRef<UniformBuffer>(&m_SortParameters, sizeof(SortParameters));
 
 		m_Camera = CreateRef<Camera>(glm::perspectiveFov(glm::radians(45.0f), 1280.0f, 720.0f, 0.1f, 100.0f));
 		m_ViewportPanel = CreateRef<ViewportPanel>();
@@ -218,37 +207,6 @@ namespace Charon {
 			cameraBufferWD.pBufferInfo = &renderer->GetCameraUB()->getDescriptorBufferInfo();
 			cameraBufferWD.descriptorCount = 1;
 		}
-
-		// Particle sort write descriptors
-		{
-			VkWriteDescriptorSet& particleBufferWD = m_ParticleSortWriteDescriptors.emplace_back();
-			particleBufferWD.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			particleBufferWD.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			particleBufferWD.dstBinding = 0;
-			particleBufferWD.pBufferInfo = &m_ParticleBuffers.ParticleBuffer->getDescriptorBufferInfo();
-			particleBufferWD.descriptorCount = 1;
-
-			VkWriteDescriptorSet& aliveBufferPostSimulateWD = m_ParticleSortWriteDescriptors.emplace_back();
-			aliveBufferPostSimulateWD.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			aliveBufferPostSimulateWD.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			aliveBufferPostSimulateWD.dstBinding = 1;
-			aliveBufferPostSimulateWD.pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
-			aliveBufferPostSimulateWD.descriptorCount = 1;
-
-			VkWriteDescriptorSet& cameraBufferWD = m_ParticleSortWriteDescriptors.emplace_back();
-			cameraBufferWD.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			cameraBufferWD.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			cameraBufferWD.dstBinding = 2;
-			cameraBufferWD.pBufferInfo = &renderer->GetCameraUB()->getDescriptorBufferInfo();
-			cameraBufferWD.descriptorCount = 1;
-
-			VkWriteDescriptorSet& sortParamsWD = m_ParticleSortWriteDescriptors.emplace_back();
-			sortParamsWD.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			sortParamsWD.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			sortParamsWD.dstBinding = 3;
-			sortParamsWD.pBufferInfo = &m_ParticleBuffers.SortParameters->getDescriptorBufferInfo();
-			sortParamsWD.descriptorCount = 1;
-		}
 	}
 
 	static int frame = 0;
@@ -260,9 +218,9 @@ namespace Charon {
 
 		m_Camera->Update();
 
+		// Skip if paused 
 		if (m_Pause && !m_NextFrame)
 			return;
-
 		m_NextFrame = false;
 
 		// Upload gradient points
@@ -314,15 +272,11 @@ namespace Charon {
 
 			if (frame % 2 == 0)
 			{
-				//	m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
-				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
 				m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
 
 			}
 			else
 			{
-				//	m_ParticleSimulationWriteDescriptors[2].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
-				m_ParticleSortWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
 				m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
 			}
 
@@ -343,20 +297,6 @@ namespace Charon {
 			vkUpdateDescriptorSets(device->GetLogicalDevice(), m_ParticleSimulationWriteDescriptors.size(), m_ParticleSimulationWriteDescriptors.data(), 0, NULL);
 		}
 
-		// Sort
-		{
-			VkDescriptorSetAllocateInfo computeSortDescriptorSetAllocateInfo{};
-			computeSortDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-			computeSortDescriptorSetAllocateInfo.pSetLayouts = m_ParticleShaders.Sort->GetDescriptorSetLayouts().data();
-			computeSortDescriptorSetAllocateInfo.descriptorSetCount = m_ParticleShaders.Sort->GetDescriptorSetLayouts().size();
-			m_ParticleSortDescriptorSet = renderer->AllocateDescriptorSet(computeSortDescriptorSetAllocateInfo);
-
-			for (auto& wd : m_ParticleSortWriteDescriptors)
-				wd.dstSet = m_ParticleSortDescriptorSet;
-
-			vkUpdateDescriptorSets(device->GetLogicalDevice(), m_ParticleSortWriteDescriptors.size(), m_ParticleSortWriteDescriptors.data(), 0, NULL);
-		}
-
 		// Particle compute
 		{
 			if (m_Emit10)
@@ -373,7 +313,6 @@ namespace Charon {
 				}
 
 				// Particle Emit
-
 				{
 					VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
@@ -387,9 +326,7 @@ namespace Charon {
 					device->FlushCommandBuffer(commandBuffer, true);
 				}
 
-
 				// Particle Simulate
-				if (m_Emit10)
 				{
 					VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
@@ -399,7 +336,6 @@ namespace Charon {
 					VkDeviceSize offset = { offsetof(IndirectDrawBuffer, DispatchSimulation) };
 					//vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
 					vkCmdDispatch(commandBuffer, 1, 1, 1);
-
 
 					device->FlushCommandBuffer(commandBuffer, true);
 				}
@@ -415,169 +351,7 @@ namespace Charon {
 					device->FlushCommandBuffer(commandBuffer, true);
 				}
 			}
-
-			// Particle sort
-			uint32_t arrayCount = 0;
-			{
-				ScopedMap<CounterBuffer, StorageBuffer> newCounterBuffer(m_ParticleBuffers.CounterBuffer);
-				arrayCount = newCounterBuffer->AliveCount_AfterSimulation;
-				m_ParticleCount = newCounterBuffer->AliveCount_AfterSimulation;
-			}
-
-			if (m_Sort)
-			{
-				if (arrayCount > 1)
-				{
-
-					VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-
-					vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Sort->GetPipeline());
-					vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Sort->GetPipelineLayout(), 0, 1, &m_ParticleSortDescriptorSet, 0, 0);
-
-					uint32_t max_workgroup_size = 1024; // TODO: Calculate this based on *queried* hardware limits.
-					uint32_t workgroup_size_x = 1;
-
-					// Adjust workgroup_size_x to get as close to max_workgroup_size as possible.
-					if (arrayCount < max_workgroup_size * 2) {
-						workgroup_size_x = arrayCount / 2;
-					}
-					else {
-						workgroup_size_x = max_workgroup_size;
-					}
-
-					m_SortParameters.h = 0;
-
-					const uint32_t workgroup_count = arrayCount / (workgroup_size_x * 2);
-
-					// Fully optimised version of bitonic merge sort.
-					// Uses workgroup local memory whenever possible.
-
-					uint32_t h = workgroup_size_x * 2;
-					assert(h <= arrayCount);
-					assert(h % 2 == 0);
-
-					{
-						ScopedMap<SortParameters, UniformBuffer> sortParamsBuffer(m_ParticleBuffers.SortParameters);
-						sortParamsBuffer->algorithm = eLocalBitonicMergeSortExample;
-						sortParamsBuffer->h = h;
-						sortParamsBuffer->workgroupSizeX = workgroup_size_x;
-					}
-					vkCmdDispatch(commandBuffer, workgroup_count, 1, 1);
-
-
-					{
-						VkBufferMemoryBarrier memoryBarrier = {};
-						memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-						memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-						memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-						memoryBarrier.buffer = m_ParticleSortWriteDescriptors[1].pBufferInfo->buffer;
-						memoryBarrier.size = m_ParticleSortWriteDescriptors[1].pBufferInfo->range;
-						vkCmdPipelineBarrier(
-							commandBuffer,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-							0,
-							0, nullptr,
-							1, &memoryBarrier,
-							0, nullptr);
-					}
-
-
-					// we must now double h, as this happens before every flip
-					h *= 2;
-
-					for (; h <= arrayCount; h *= 2)
-					{
-						{
-							ScopedMap<SortParameters, UniformBuffer> sortParamsBuffer(m_ParticleBuffers.SortParameters);
-							sortParamsBuffer->algorithm = eBigFlip;
-							sortParamsBuffer->h = h;
-						}
-						vkCmdDispatch(commandBuffer, workgroup_count, 1, 1);
-						{
-							VkBufferMemoryBarrier memoryBarrier = {};
-							memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-							memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-							memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-							memoryBarrier.buffer = m_ParticleSortWriteDescriptors[1].pBufferInfo->buffer;
-							memoryBarrier.size = m_ParticleSortWriteDescriptors[1].pBufferInfo->range;
-							vkCmdPipelineBarrier(
-								commandBuffer,
-								VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-								VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-								0,
-								0, nullptr,
-								1, &memoryBarrier,
-								0, nullptr);
-						}
-
-
-						for (uint32_t hh = h / 2; hh > 1; hh /= 2)
-						{
-
-							if (hh <= workgroup_size_x * 2)
-							{
-								// We can fit all elements for a disperse operation into continuous shader
-								// workgroup local memory, which means we can complete the rest of the
-								// cascade using a single shader invocation.
-								{
-									ScopedMap<SortParameters, UniformBuffer> sortParamsBuffer(m_ParticleBuffers.SortParameters);
-									sortParamsBuffer->algorithm = eLocalDisperse;
-									sortParamsBuffer->h = hh;
-								}
-								vkCmdDispatch(commandBuffer, workgroup_count, 1, 1);
-								{
-									VkBufferMemoryBarrier memoryBarrier = {};
-									memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-									memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-									memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									memoryBarrier.buffer = m_ParticleSortWriteDescriptors[1].pBufferInfo->buffer;
-									memoryBarrier.size = m_ParticleSortWriteDescriptors[1].pBufferInfo->range;
-									vkCmdPipelineBarrier(
-										commandBuffer,
-										VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-										VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-										0,
-										0, nullptr,
-										1, &memoryBarrier,
-										0, nullptr);
-								}
-								break;
-							}
-							else {
-								{
-									ScopedMap<SortParameters, UniformBuffer> sortParamsBuffer(m_ParticleBuffers.SortParameters);
-									sortParamsBuffer->algorithm = eBigDisperse;
-									sortParamsBuffer->h = hh;
-								}
-								vkCmdDispatch(commandBuffer, workgroup_count, 1, 1);
-								{
-									VkBufferMemoryBarrier memoryBarrier = {};
-									memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-									memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-									memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-									memoryBarrier.buffer = m_ParticleSortWriteDescriptors[1].pBufferInfo->buffer;
-									memoryBarrier.size = m_ParticleSortWriteDescriptors[1].pBufferInfo->range;
-									vkCmdPipelineBarrier(
-										commandBuffer,
-										VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-										VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-										0,
-										0, nullptr,
-										1, &memoryBarrier,
-										0, nullptr);
-								}
-							}
-						}
-					}
-
-					device->FlushCommandBuffer(commandBuffer, true);
-				}
-			}
-
 		}
-
-		
 	}
 
 	void ParticleLayer::OnRender()
@@ -587,7 +361,8 @@ namespace Charon {
 		VkCommandBuffer commandBuffer = renderer->GetActiveCommandBuffer();
 		
 		// Update particle renderer write descriptors
-		if (false) {
+		if (true) 
+		{
 			VkDescriptorSetAllocateInfo particleDescriptorSetAllocateInfo{};
 			particleDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 			particleDescriptorSetAllocateInfo.pSetLayouts = m_ParticleShader->GetDescriptorSetLayouts().data();
@@ -607,7 +382,7 @@ namespace Charon {
 		{
 			renderer->BeginRenderPass(renderer->GetFramebuffer());
 
-			if (false)
+			if (true)
 			{
 				vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ParticleRendererPipeline->GetPipeline());
 
@@ -633,9 +408,6 @@ namespace Charon {
 		}
 
 		renderer->EndScene();
-
-		
-
 	}
 
 	void ParticleLayer::OnImGUIRender()
