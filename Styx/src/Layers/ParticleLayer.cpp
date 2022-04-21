@@ -10,7 +10,7 @@
 namespace Charon {
 
 	ParticleLayer::ParticleLayer()
-		: Layer("Particle"), m_ParticleSort(10000)
+		: Layer("Particle")
 	{
 		Init();
 	}
@@ -21,7 +21,8 @@ namespace Charon {
 
 	void ParticleLayer::Init()
 	{
-		m_ParticleSort.Init();
+		m_ParticleSort = CreateRef<ParticleSort>();
+		m_ParticleSort->Init(10);
 
 		// Emitter settings
 		m_Emitter.Position = glm::vec3(0.0f);
@@ -56,12 +57,13 @@ namespace Charon {
 		// Buffers
 		m_ParticleBuffers.ParticleBuffer = CreateRef<StorageBuffer>(sizeof(Particle) * m_MaxParticles);
 		m_ParticleBuffers.EmitterBuffer = CreateRef<UniformBuffer>(&m_Emitter, sizeof(Emitter));
-		m_ParticleBuffers.AliveBufferPreSimulate = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles);
-		m_ParticleBuffers.AliveBufferPostSimulate = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles);
+		m_ParticleBuffers.AliveBufferPreSimulate = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+		m_ParticleBuffers.AliveBufferPostSimulate = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 		m_ParticleBuffers.DeadBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles);
 		m_ParticleBuffers.CounterBuffer = CreateRef<StorageBuffer>(sizeof(CounterBuffer));
 		m_ParticleBuffers.IndirectDrawBuffer = CreateRef<StorageBuffer>(sizeof(IndirectDrawBuffer), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 		m_ParticleBuffers.VertexBuffer = CreateRef<StorageBuffer>(sizeof(ParticleVertex) * 4 * m_MaxParticles, false, true);
+		m_ParticleBuffers.CameraDistanceBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 		m_ParticleBuffers.IndexBuffer = CreateRef<IndexBuffer>(sizeof(uint32_t) * m_MaxIndices, m_MaxIndices);
 
 		m_Camera = CreateRef<Camera>(glm::perspectiveFov(glm::radians(45.0f), 1280.0f, 720.0f, 0.1f, 100.0f));
@@ -206,6 +208,13 @@ namespace Charon {
 			cameraBufferWD.dstBinding = 8;
 			cameraBufferWD.pBufferInfo = &renderer->GetCameraUB()->getDescriptorBufferInfo();
 			cameraBufferWD.descriptorCount = 1;
+
+			VkWriteDescriptorSet& cameraDistanceBufferWD = m_ParticleSimulationWriteDescriptors.emplace_back();
+			cameraDistanceBufferWD.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			cameraDistanceBufferWD.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			cameraDistanceBufferWD.dstBinding = 9;
+			cameraDistanceBufferWD.pBufferInfo = &m_ParticleBuffers.CameraDistanceBuffer->getDescriptorBufferInfo();
+			cameraDistanceBufferWD.descriptorCount = 1;
 		}
 	}
 
@@ -350,6 +359,13 @@ namespace Charon {
 
 					device->FlushCommandBuffer(commandBuffer, true);
 				}
+
+				// Sorting
+				if (m_Sort)
+				{
+					m_ParticleSort->Sort(m_MaxParticles, m_ParticleBuffers.CameraDistanceBuffer, m_ParticleBuffers.AliveBufferPostSimulate);
+				}
+
 			}
 		}
 	}
@@ -361,7 +377,6 @@ namespace Charon {
 		VkCommandBuffer commandBuffer = renderer->GetActiveCommandBuffer();
 		
 		// Update particle renderer write descriptors
-		if (true) 
 		{
 			VkDescriptorSetAllocateInfo particleDescriptorSetAllocateInfo{};
 			particleDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -382,7 +397,6 @@ namespace Charon {
 		{
 			renderer->BeginRenderPass(renderer->GetFramebuffer());
 
-			if (true)
 			{
 				vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ParticleRendererPipeline->GetPipeline());
 
@@ -456,6 +470,15 @@ namespace Charon {
 				for (int i = 0; i < m_MaxParticles; i += 4)
 				{
 					std::cout << buffer0[i] << ' ' << buffer0[i + 1] << ' ' << buffer0[i + 2] << ' ' << buffer0[i + 3] << '\n';
+				}
+			}
+
+			if (ImGui::Button("Dump Camera Distance Buffer "))
+			{
+				ScopedMap<uint32_t, StorageBuffer> buffer0(m_ParticleBuffers.CameraDistanceBuffer);
+				for (int i = 0; i < m_MaxParticles; i++)
+				{
+					std::cout << buffer0[i] << '\n';
 				}
 			}
 

@@ -99,6 +99,11 @@ layout(binding = 8) uniform CameraBuffer
 	mat4 View;
 } u_CameraBuffer;
 
+layout(std430, binding = 9) buffer CameraDistanceBuffer
+{
+	uint m_DistanceToCamera[];
+} u_CameraDistanceBuffer;
+
 float rand(inout float seed, in vec2 uv)
 {
 	float result = fract(sin(seed * dot(uv, vec2(12.9898, 78.233))) * 43758.5453);

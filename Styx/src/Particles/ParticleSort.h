@@ -17,11 +17,13 @@ namespace Charon {
 		};
 
 	public:
-		ParticleSort(uint32_t maxParticles);
-		void Init();
+		ParticleSort();
+		void Init(uint32_t maxParticles);
+
+		void Sort(uint32_t count, Ref<StorageBuffer> distanceBuffer, Ref<StorageBuffer> indexBuffer);
 
 	private:
-		void Sort(VkCommandBuffer commandList);
+		void SortInternal(VkCommandBuffer commandList);
 		void CreateBuffers();
 		void BindUAVBuffer(VkBuffer* pBuffer, VkDescriptorSet& DescriptorSet, uint32_t Binding = 0, uint32_t Count = 1);
 		void CompileShader(SortPipeline& pipeline, std::string_view entryPoint, const std::string& define = "");

@@ -8,7 +8,6 @@
 #include "Charon/Graphics/Texture2D.h"
 #include "UI/ViewportPanel.h"
 #include "UI/ImGuiColorGradient.h"
-
 #include "Particles/ParticleSort.h"
 
 namespace Charon {
@@ -98,7 +97,7 @@ namespace Charon {
         Ref<ViewportPanel> m_ViewportPanel;
         Emitter m_Emitter;
 
-        inline static uint32_t m_MaxParticles = 20;
+        inline static uint32_t m_MaxParticles = 10;
         inline static uint32_t m_MaxIndices = m_MaxParticles * 6;
 
         float m_EmitCount = 0.0f;
@@ -111,11 +110,7 @@ namespace Charon {
 
         float m_SecondTimer = 1.0f;
         uint32_t m_ParticlesEmittedPerSecond = 0;
-        
-        // Stats
         uint32_t m_ParticleCount = 0;
-
-        bool m_Sort = false;
 
         ImGradient m_ColorLifetimeGradient;
 
@@ -128,7 +123,7 @@ namespace Charon {
         VkDescriptorSet m_ParticleSimulationDescriptorSet = nullptr;
         std::vector<VkWriteDescriptorSet> m_ParticleSimulationWriteDescriptors;
 
-        ParticleSort m_ParticleSort;
+        Ref<ParticleSort> m_ParticleSort;
 
         struct ParticleShaders
         {
@@ -156,10 +151,12 @@ namespace Charon {
             Ref<StorageBuffer> CounterBuffer;
             Ref<StorageBuffer> IndirectDrawBuffer;
             Ref<StorageBuffer> VertexBuffer;
+            Ref<StorageBuffer> CameraDistanceBuffer;
             Ref<IndexBuffer> IndexBuffer;
         } m_ParticleBuffers;
 
         // Debug stuff
+        bool m_Sort = false;
         bool m_Pause = false;
         bool m_NextFrame = false;
         bool m_Emit10 = false;

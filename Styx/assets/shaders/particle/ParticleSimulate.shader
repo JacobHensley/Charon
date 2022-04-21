@@ -100,6 +100,11 @@ layout(binding = 8) uniform CameraBuffer
 	mat4 View;
 } u_CameraBuffer;
 
+layout(std430, binding = 9) buffer CameraDistanceBuffer
+{
+	uint DistanceToCamera[];
+} u_CameraDistanceBuffer;
+
 float rand(inout float seed, in vec2 uv)
 {
 	float result = fract(sin(seed * dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
@@ -192,6 +197,12 @@ void main()
 			u_VertexBuffer.vertices[(v0 + 1)].Position = particle.Position + vec3(0.5, -0.5, 0.0);
 			u_VertexBuffer.vertices[(v0 + 2)].Position = particle.Position + vec3(0.5, 0.5, 0.0);
 			u_VertexBuffer.vertices[(v0 + 3)].Position = particle.Position + vec3(-0.5, 0.5, 0.0);
+
+			// store squared distance to main camera:
+			vec3 cameraPosition = u_CameraBuffer.View[3].xyz;
+			vec3 eyeVector = particle.Position - cameraPosition;
+			uint distSQ = uint(dot(eyeVector, eyeVector));
+			u_CameraDistanceBuffer.DistanceToCamera[particleIndex] = -distSQ; // Wicked had it was prevCount not particleIndex
 		}
 		else
 		{
