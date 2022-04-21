@@ -140,7 +140,7 @@ namespace Charon {
         m_NumKeys = count;
 
         // Copy data into buffers (NOTE: Probably should just use the alreay existing buffer)
-        {
+        if (false) {
             VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
             VkBufferCopy copyInfo = { 0 };
             copyInfo.srcOffset = 0;
@@ -162,6 +162,9 @@ namespace Charon {
 
             device->FlushCommandBuffer(commandBuffer, true);
         }
+
+        m_DstKeyBuffers[0] = distanceBuffer;
+        m_DstPayloadBuffers[0] = indexBuffer;
 
         // Update descriptor sets (NOTE: Should not have to do this)
         {

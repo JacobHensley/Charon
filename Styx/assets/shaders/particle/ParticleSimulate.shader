@@ -201,7 +201,7 @@ void main()
 			// store squared distance to main camera:
 			vec3 cameraPosition = u_CameraBuffer.View[3].xyz;
 			vec3 eyeVector = particle.Position - cameraPosition;
-			uint distSQ = uint(dot(eyeVector, eyeVector));
+			uint distSQ = uint(dot(eyeVector, eyeVector) * 1000000.0f);
 			u_CameraDistanceBuffer.DistanceToCamera[particleIndex] = -distSQ; // Wicked had it was prevCount not particleIndex
 		}
 		else
