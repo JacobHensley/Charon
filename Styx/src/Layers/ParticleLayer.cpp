@@ -587,7 +587,7 @@ namespace Charon {
 		VkCommandBuffer commandBuffer = renderer->GetActiveCommandBuffer();
 		
 		// Update particle renderer write descriptors
-		{
+		if (false) {
 			VkDescriptorSetAllocateInfo particleDescriptorSetAllocateInfo{};
 			particleDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 			particleDescriptorSetAllocateInfo.pSetLayouts = m_ParticleShader->GetDescriptorSetLayouts().data();
@@ -607,17 +607,20 @@ namespace Charon {
 		{
 			renderer->BeginRenderPass(renderer->GetFramebuffer());
 
-			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ParticleRendererPipeline->GetPipeline());
+			if (false)
+			{
+				vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ParticleRendererPipeline->GetPipeline());
 
-			VkDeviceSize offset = 0;
-			VkBuffer vertexBuffer = m_ParticleBuffers.VertexBuffer->GetBuffer();
-			vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &offset);
+				VkDeviceSize offset = 0;
+				VkBuffer vertexBuffer = m_ParticleBuffers.VertexBuffer->GetBuffer();
+				vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &offset);
 
-			vkCmdBindIndexBuffer(commandBuffer, m_ParticleBuffers.IndexBuffer->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);;
-			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ParticleRendererPipeline->GetPipelineLayout(), 0, 1, &m_ParticleRendererDescriptorSet, 0, 0);
+				vkCmdBindIndexBuffer(commandBuffer, m_ParticleBuffers.IndexBuffer->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);;
+				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ParticleRendererPipeline->GetPipelineLayout(), 0, 1, &m_ParticleRendererDescriptorSet, 0, 0);
 
-			VkDeviceSize indirectBufferOffset = { offsetof(IndirectDrawBuffer, DrawParticles) };
-			vkCmdDrawIndexedIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), indirectBufferOffset, 1, 0);
+				VkDeviceSize indirectBufferOffset = { offsetof(IndirectDrawBuffer, DrawParticles) };
+				vkCmdDrawIndexedIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), indirectBufferOffset, 1, 0);
+			}
 
 			renderer->EndRenderPass();
 		}

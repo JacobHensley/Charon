@@ -7,7 +7,7 @@ namespace Charon {
 	class VulkanComputePipeline
 	{
 	public:
-		VulkanComputePipeline(Ref<Shader> Shader);
+		VulkanComputePipeline(Ref<Shader> Shader, VkPipelineLayout layout = nullptr);
 		~VulkanComputePipeline();
 
 	public:
@@ -21,6 +21,7 @@ namespace Charon {
 		VkPipeline m_Pipeline = nullptr;
 		VkPipelineLayout m_PipelineLayout = nullptr;
 
+		bool m_OwnLayout = false;
 		Ref<Shader> m_Shader;
 	};
 

@@ -63,6 +63,13 @@ namespace Charon {
 		uint32_t Index;
 	};
 
+	struct PushConstantRange
+	{
+		VkShaderStageFlagBits ShaderStage = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+		uint32_t Offset = 0;
+		uint32_t Size = 0;
+	};
+
 	class Shader : public Asset
 	{
 	public:
@@ -83,6 +90,7 @@ namespace Charon {
 
 		static uint32_t GetTypeSize(ShaderUniformType type);
 
+		const std::vector<PushConstantRange>& GetPushConstantRanges() const { return m_PushConstantBufferRanges; }
 	private:
 		void Init();
 		bool CompileGLSLShaders(const std::unordered_map<ShaderStage, std::string>& shaderSrc);
@@ -100,6 +108,7 @@ namespace Charon {
 		const std::vector<std::wstring>& m_Defines;
 
 		std::vector<UniformBufferDescription> m_UniformBufferDescriptions;
+		std::vector<PushConstantRange> m_PushConstantBufferRanges;
 		std::vector<StorageBufferDescription> m_StorageBufferDescriptions;
 		std::vector<ShaderAttribute> m_ShaderAttributeDescriptions;
 		std::vector<ShaderResource> m_ShaderResourceDescriptions;

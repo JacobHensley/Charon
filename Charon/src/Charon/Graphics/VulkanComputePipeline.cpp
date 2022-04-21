@@ -5,8 +5,8 @@
 
 namespace Charon {
 
-	VulkanComputePipeline::VulkanComputePipeline(Ref<Shader> shader)
-		:  m_Shader(shader)
+	VulkanComputePipeline::VulkanComputePipeline(Ref<Shader> shader, VkPipelineLayout layout)
+		:  m_Shader(shader), m_PipelineLayout(layout)
 	{
 		Init();
 		CR_LOG_INFO("Initialized Vulkan compute pipeline");
@@ -17,7 +17,8 @@ namespace Charon {
 		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
 
 		vkDestroyPipeline(device, m_Pipeline, nullptr);
-		vkDestroyPipelineLayout(device, m_PipelineLayout, nullptr);
+		if (m_OwnLayout)
+			vkDestroyPipelineLayout(device, m_PipelineLayout, nullptr);
 	}
 
 	void VulkanComputePipeline::Init()
@@ -26,13 +27,31 @@ namespace Charon {
 
 		const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts = m_Shader->GetDescriptorSetLayouts();
 
-		// Set pipeline layout
-		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
-		pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+		if (!m_PipelineLayout)
+		{
+			// Set pipeline layout
+			VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+			pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+			pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
+			pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
 
-		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout));
+			const auto& pushConstantRanges = m_Shader->GetPushConstantRanges();
+			std::vector<VkPushConstantRange> vulkanPushConstantRanges;
+			vulkanPushConstantRanges.reserve(pushConstantRanges.size());
+			for (const auto& pushConstangeRange : pushConstantRanges)
+			{
+				auto& pcr = vulkanPushConstantRanges.emplace_back();
+				pcr.stageFlags = pushConstangeRange.ShaderStage;
+				pcr.offset = pushConstangeRange.Offset;
+				pcr.size = pushConstangeRange.Size;
+			}
+
+			pipelineLayoutInfo.pushConstantRangeCount = (uint32_t)vulkanPushConstantRanges.size();
+			pipelineLayoutInfo.pPushConstantRanges = vulkanPushConstantRanges.data();
+
+			VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout));
+			m_OwnLayout = true;
+		}
 
 		// Create compute pipeline
 		VkComputePipelineCreateInfo computePipelineCreateInfo{};
@@ -40,7 +59,6 @@ namespace Charon {
 		computePipelineCreateInfo.layout = m_PipelineLayout;
 		computePipelineCreateInfo.stage = m_Shader->GetShaderCreateInfo()[0]; // TODO: Check to make sure to get right stage for compute
 		VK_CHECK_RESULT(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &m_Pipeline));
-
 	}
 
 }

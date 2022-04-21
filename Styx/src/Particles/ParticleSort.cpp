@@ -39,20 +39,60 @@ namespace Charon {
 
     void ParticleSort::Init()
     {
+        Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
+
         // Load shader
-        m_ParallelSortShader = CreateRef<Shader>("assets/shaders/sorting/ParallelSortCS.hlsl", "FPS_SetupIndirectParameters");
-
         CreateBuffers();
-        CompileAndCreatePipeline(m_ComputePipelines.FPS_SetupIndirectParameters, "FPS_SetupIndirectParameters");
-        CompileAndCreatePipeline(m_ComputePipelines.FPS_Count, "FPS_Count");
-        CompileAndCreatePipeline(m_ComputePipelines.FPS_CountReduce, "FPS_CountReduce");
-        CompileAndCreatePipeline(m_ComputePipelines.FPS_Scan, "FPS_Scan");
-        CompileAndCreatePipeline(m_ComputePipelines.FPS_ScanAdd, "FPS_ScanAdd");
-        CompileAndCreatePipeline(m_ComputePipelines.FPS_Scatter, "FPS_Scatter");
+        //CompileAndCreatePipeline(m_ComputePipelines.FPS_SetupIndirectParameters, "FPS_SetupIndirectParameters");
+        CompileShader(m_ComputePipelines.FPS_Count, "FPS_Count");
+        CompileShader(m_ComputePipelines.FPS_CountReduce, "FPS_CountReduce");
+        CompileShader(m_ComputePipelines.FPS_Scan, "FPS_Scan");
+        CompileShader(m_ComputePipelines.FPS_ScanAdd, "FPS_ScanAdd");
+        CompileShader(m_ComputePipelines.FPS_Scatter, "FPS_Scatter");
+        CompileShader(m_ComputePipelines.FPS_ScatterPayload, "FPS_Scatter", "kRS_ValueCopy"); //#define kRS_ValueCopy
 
-        m_SortPipelineLayout = m_ComputePipelines.FPS_Count.Pipeline->GetPipelineLayout();
+        //m_SortPipelineLayout = m_ComputePipelines.FPS_Count.Pipeline->GetPipelineLayout();
 
-        CompileAndCreatePipeline(m_ComputePipelines.FPS_ScatterPayload, "FPS_Scatter", "kRS_ValueCopy"); //#define kRS_ValueCopy
+        VkPushConstantRange constant_range;
+        constant_range.stageFlags = VK_SHADER_STAGE_ALL;
+        constant_range.offset = 0;
+        constant_range.size = 4;
+
+        VkPipelineLayoutCreateInfo layout_create_info = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+        layout_create_info.pNext = nullptr;
+        layout_create_info.flags = 0;
+        layout_create_info.setLayoutCount = 6;
+
+        std::vector<VkDescriptorSetLayout> layouts(layout_create_info.setLayoutCount);
+        layouts[0] = m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(0);
+        layouts[2] = m_ComputePipelines.FPS_ScatterPayload.Shader->GetDescriptorSetLayout(2);
+        layouts[3] = m_ComputePipelines.FPS_ScanAdd.Shader->GetDescriptorSetLayout(3);
+        layouts[4] = m_ComputePipelines.FPS_CountReduce.Shader->GetDescriptorSetLayout(4);
+
+        for (size_t i = 0; i < layouts.size(); i++)
+        {
+            if (!layouts[i])
+            {
+				VkDescriptorSetLayoutCreateInfo layoutInfo{};
+				layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+				layoutInfo.bindingCount = 0;
+				layoutInfo.pBindings = nullptr;
+				VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device->GetLogicalDevice(), &layoutInfo, nullptr, &layouts[i]));
+            }
+        }
+
+
+		layout_create_info.pSetLayouts = layouts.data();
+		layout_create_info.pushConstantRangeCount = 1;
+		layout_create_info.pPushConstantRanges = &constant_range;
+		VkResult bCreatePipelineLayout = vkCreatePipelineLayout(device->GetLogicalDevice(), &layout_create_info, nullptr, &m_SortPipelineLayout);
+
+        CompileAndCreatePipeline(m_ComputePipelines.FPS_Count, m_SortPipelineLayout);
+		CompileAndCreatePipeline(m_ComputePipelines.FPS_CountReduce, m_SortPipelineLayout);
+		CompileAndCreatePipeline(m_ComputePipelines.FPS_Scan, m_SortPipelineLayout);
+		CompileAndCreatePipeline(m_ComputePipelines.FPS_ScanAdd, m_SortPipelineLayout);
+		CompileAndCreatePipeline(m_ComputePipelines.FPS_Scatter, m_SortPipelineLayout);
+		CompileAndCreatePipeline(m_ComputePipelines.FPS_ScatterPayload, m_SortPipelineLayout);
 
         // Create dummy data
         constexpr uint32_t dummyDataCount = 10;
@@ -70,22 +110,22 @@ namespace Charon {
         };
 
         {
-            m_SortKeyBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount); // these are the particle distances
+            m_SortKeyBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount, (uint32_t)VK_BUFFER_USAGE_TRANSFER_SRC_BIT); // these are the particle distances
             uint32_t* dst = m_SortKeyBuffer->Map<uint32_t>();
             memcpy(dst, particleDistances, sizeof(uint32_t) * dummyDataCount);
             m_SortKeyBuffer->Unmap();
         }
 
         {
-            m_ParticleIndexBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount); // payload
+            m_ParticleIndexBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount, (uint32_t)VK_BUFFER_USAGE_TRANSFER_SRC_BIT); // payload
             uint32_t* dst = m_ParticleIndexBuffer->Map<uint32_t>();
             memcpy(dst, particleIndices, sizeof(uint32_t) * dummyDataCount);
             m_ParticleIndexBuffer->Unmap();
         }
 
-        m_DstKeyBuffers[0] = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount);
+        m_DstKeyBuffers[0] = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount, (uint32_t)VK_BUFFER_USAGE_TRANSFER_DST_BIT);
         m_DstKeyBuffers[1] = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount);
-        m_DstPayloadBuffers[0] = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount);
+        m_DstPayloadBuffers[0] = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount, (uint32_t)VK_BUFFER_USAGE_TRANSFER_DST_BIT);
         m_DstPayloadBuffers[1] = CreateRef<StorageBuffer>(sizeof(uint32_t) * dummyDataCount);
 
         // Descriptors
@@ -95,13 +135,13 @@ namespace Charon {
         m_SortDescriptorSetConstants[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(0));
         m_SortDescriptorSetConstants[2] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(0));
 
-        m_SortDescriptorSetInputOutput[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(2));
-        m_SortDescriptorSetInputOutput[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(2));
+        m_SortDescriptorSetInputOutput[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_ScatterPayload.Shader->GetDescriptorSetLayout(2));
+        m_SortDescriptorSetInputOutput[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_ScatterPayload.Shader->GetDescriptorSetLayout(2));
         
-        m_SortDescriptorSetScanSets[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Scan.Shader->GetDescriptorSetLayout(3));
-        m_SortDescriptorSetScanSets[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Scan.Shader->GetDescriptorSetLayout(3));
+        m_SortDescriptorSetScanSets[0] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_ScanAdd.Shader->GetDescriptorSetLayout(3));
+        m_SortDescriptorSetScanSets[1] = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_ScanAdd.Shader->GetDescriptorSetLayout(3));
 
-        m_SortDescriptorSetScratch = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_Count.Shader->GetDescriptorSetLayout(4));
+        m_SortDescriptorSetScratch = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_CountReduce.Shader->GetDescriptorSetLayout(4));
         
     //    m_SortDescriptorSetIndirect = Renderer::AllocateDescriptorSet(m_ComputePipelines.FPS_ScanAdd.Shader->GetDescriptorSetLayout(5));
 
@@ -148,8 +188,21 @@ namespace Charon {
             VkBufferCopy copyInfo = { 0 };
             copyInfo.srcOffset = 0;
             copyInfo.size = sizeof(uint32_t) * m_NumKeys;
+
+            VkBufferMemoryBarrier barriers[2] = {
+                BufferTransition(m_DstKeyBuffers[0]->GetBuffer(), VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, m_DstKeyBuffers[0]->GetSize()),
+                BufferTransition(m_DstPayloadBuffers[0]->GetBuffer(), VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, m_DstPayloadBuffers[0]->GetSize())
+            };
+            
+            vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 2, barriers, 0, nullptr);
+
             vkCmdCopyBuffer(commandBuffer, m_SortKeyBuffer->GetBuffer(), m_DstKeyBuffers[0]->GetBuffer(), 1, &copyInfo);
             vkCmdCopyBuffer(commandBuffer, m_ParticleIndexBuffer->GetBuffer(), m_DstPayloadBuffers[0]->GetBuffer(), 1, &copyInfo);
+
+            barriers[0] = BufferTransition(m_DstKeyBuffers[0]->GetBuffer(), VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, m_DstKeyBuffers[0]->GetSize());
+            barriers[1] = BufferTransition(m_DstPayloadBuffers[0]->GetBuffer(), VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, m_DstPayloadBuffers[0]->GetSize());
+			vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 2, barriers, 0, nullptr);
+
             device->FlushCommandBuffer(commandBuffer, true);
 
             {
@@ -170,22 +223,64 @@ namespace Charon {
 
             VkCommandBuffer sortCommandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
             Sort(sortCommandBuffer, false, false);
+
             device->FlushCommandBuffer(sortCommandBuffer, true);
 
-            __debugbreak();
+            CR_LOG_DEBUG("=============================================================");
+
+			{
+				ScopedMap<uint32_t, StorageBuffer> buffer(m_DstKeyBuffers[0]);
+				for (int i = 0; i < m_NumKeys; i++)
+				{
+					CR_LOG_DEBUG("Key: {0}", buffer[i]);
+				}
+			}
+
+			{
+				ScopedMap<uint32_t, StorageBuffer> buffer(m_DstPayloadBuffers[0]);
+				for (int i = 0; i < m_NumKeys; i++)
+				{
+					CR_LOG_DEBUG("Value: {0}", buffer[i]);
+				}
+			}
+            CR_LOG_DEBUG("=============================================================");
+			{
+				ScopedMap<uint32_t, StorageBuffer> buffer(m_DstKeyBuffers[1]);
+				for (int i = 0; i < m_NumKeys; i++)
+				{
+					CR_LOG_DEBUG("Key: {0}", buffer[i]);
+				}
+			}
+
+			{
+				ScopedMap<uint32_t, StorageBuffer> buffer(m_DstPayloadBuffers[1]);
+				for (int i = 0; i < m_NumKeys; i++)
+				{
+					CR_LOG_DEBUG("Value: {0}", buffer[i]);
+				}
+			}
+
+
         }
 	}
 
-	void ParticleSort::CompileAndCreatePipeline(SortPipeline& pipeline, std::string_view entryPoint, const std::string& define)
+	void ParticleSort::CompileShader(SortPipeline& pipeline, std::string_view entryPoint, const std::string& define /*= ""*/)
 	{
-        if (!define.empty())
-        {
-            std::vector<std::wstring> defines = { std::wstring(define.begin(), define.end()) };
-            pipeline.Shader = CreateRef<Shader>("assets/shaders/sorting/ParallelSortCS.hlsl", entryPoint, defines);
-        }
+		if (!define.empty())
+		{
+			std::vector<std::wstring> defines = { std::wstring(define.begin(), define.end()) };
+			pipeline.Shader = CreateRef<Shader>("assets/shaders/sorting/ParallelSortCS.hlsl", entryPoint, defines);
+		}
+		else
+		{
+			pipeline.Shader = CreateRef<Shader>("assets/shaders/sorting/ParallelSortCS.hlsl", entryPoint);
+		}
 
-		pipeline.Shader = CreateRef<Shader>("assets/shaders/sorting/ParallelSortCS.hlsl", entryPoint);
-		pipeline.Pipeline = CreateRef<VulkanComputePipeline>(pipeline.Shader);
+	}
+
+	void ParticleSort::CompileAndCreatePipeline(SortPipeline& pipeline, VkPipelineLayout layout)
+	{
+		pipeline.Pipeline = CreateRef<VulkanComputePipeline>(pipeline.Shader, layout);
 	}
 
 	void ParticleSort::CreateBuffers()
@@ -290,7 +385,7 @@ namespace Charon {
 		VkBuffer ReadPayloadBufferInfo = m_DstPayloadBuffers[0]->GetBuffer();
 		VkBuffer WritePayloadBufferInfo = m_DstPayloadBuffers[1]->GetBuffer();
 
-        bool bHasPayload = false;// m_UISortPayload;
+        bool bHasPayload = true;// m_UISortPayload;
 
         // Setup barriers for the run
         VkBufferMemoryBarrier Barriers[3];
@@ -392,8 +487,8 @@ namespace Charon {
 
                 if (bIndirectDispatch)
                     vkCmdDispatchIndirect(commandList, m_IndirectReduceScanArgs->GetBuffer(), 0);
-                else
-                    vkCmdDispatch(commandList, NumReducedThreadgroupsToRun, 1, 1);
+				else
+					vkCmdDispatch(commandList, NumReducedThreadgroupsToRun, 1, 1);
 
                 // UAV barrier on the reduced sum table
                 Barriers[0] = BufferTransition(m_FPSReducedScratchBuffer->GetBuffer(), VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, m_ReducedScratchBufferSize);
@@ -422,8 +517,8 @@ namespace Charon {
                 vkCmdBindPipeline(commandList, VK_PIPELINE_BIND_POINT_COMPUTE, m_ComputePipelines.FPS_ScanAdd.Pipeline->GetPipeline());
                 if (bIndirectDispatch)
                     vkCmdDispatchIndirect(commandList, m_IndirectReduceScanArgs->GetBuffer(), 0);
-                else
-                    vkCmdDispatch(commandList, NumReducedThreadgroupsToRun, 1, 1);
+				else
+				    vkCmdDispatch(commandList, NumReducedThreadgroupsToRun, 1, 1);
             }
 
             // UAV barrier on the sum table

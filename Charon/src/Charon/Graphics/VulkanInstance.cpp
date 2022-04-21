@@ -3,7 +3,7 @@
 #include "Charon/Graphics/VulkanTools.h"
 #include <GLFW/glfw3.h>
 
-static const bool s_EnableValidationLayers = false;
+static const bool s_EnableValidationLayers = true;
 static const std::vector<const char*> s_ValidationLayers =
 {
     "VK_LAYER_KHRONOS_validation"
@@ -14,9 +14,9 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSev
     if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
     {
         CR_LOG_ERROR("Validation layer: {0}", pCallbackData->pMessage);
+        return VK_FALSE;
     }
-
-    return VK_FALSE;
+	return VK_FALSE;
 }
 
 namespace Charon {

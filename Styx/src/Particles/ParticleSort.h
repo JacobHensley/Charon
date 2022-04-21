@@ -23,15 +23,14 @@ namespace Charon {
 
 		void Init();
 	private:
-		void CompileAndCreatePipeline(SortPipeline& pipeline, std::string_view entryPoint, const std::string& define = "");
+		void CompileShader(SortPipeline& pipeline, std::string_view entryPoint, const std::string& define = "");
+		void CompileAndCreatePipeline(SortPipeline& pipeline, VkPipelineLayout layout);
 		void CreateBuffers();
 		void CreateWriteDescriptor(VkWriteDescriptorSet& set, Ref<StorageBuffer> buffer, uint32_t binding, VkDescriptorType type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 		VkBufferMemoryBarrier BufferTransition(VkBuffer buffer, VkAccessFlags before, VkAccessFlags after, uint32_t size);
 		void BindConstantBuffer(VkDescriptorBufferInfo& GPUCB, VkDescriptorSet& DescriptorSet, uint32_t Binding = 0, uint32_t Count = 1);
 		void Sort(VkCommandBuffer commandList, bool isBenchmarking, float benchmarkTime);
 	private:
-		Ref<Shader> m_ParallelSortShader;
-
 		uint32_t m_MaxParticles = 0;
 		uint32_t m_NumKeys = 0;
 

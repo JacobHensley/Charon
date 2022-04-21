@@ -156,6 +156,8 @@ namespace Charon {
 			VulkanAllocator allocator("StorageBuffer");
 			return allocator.UnmapMemory(m_BufferInfo.Allocation);
 		}
+
+		uint32_t GetSize() const { return m_Size; }
 	private:
 		BufferInfo m_BufferInfo;
 		VkDescriptorBufferInfo m_DescriptorBufferInfo;

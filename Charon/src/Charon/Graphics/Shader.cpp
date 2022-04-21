@@ -343,6 +343,22 @@ namespace Charon {
 		spirv_cross::Compiler compiler(data);
 		spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
+		for (const spirv_cross::Resource& resource : resources.push_constant_buffers)
+		{
+			uint32_t bufferOffset = 0;
+
+			const auto& bufferType = compiler.get_type(resource.base_type_id);
+			auto bufferSize = compiler.get_declared_struct_size(bufferType);
+
+			if (m_PushConstantBufferRanges.size())
+				bufferOffset = m_PushConstantBufferRanges.back().Offset + m_PushConstantBufferRanges.back().Size;
+
+			auto& pushConstantRange = m_PushConstantBufferRanges.emplace_back();
+			pushConstantRange.ShaderStage = Utils::ShaderStageToVulkan(stage);
+			pushConstantRange.Size = bufferSize - bufferOffset;
+			pushConstantRange.Offset = bufferOffset;
+		}
+
 		// Get all uniform buffers
 		for (const spirv_cross::Resource& resource : resources.uniform_buffers)
 		{
@@ -499,9 +515,24 @@ namespace Charon {
 
 			ID++;
 			 
-			VkDescriptorSetLayout& descriptorSetLayout = m_DescriptorSetLayouts.emplace_back();
+			if (descriptorSetIndex >= m_DescriptorSetLayouts.size())
+				m_DescriptorSetLayouts.resize(descriptorSetIndex + 1);
+
+			VkDescriptorSetLayout& descriptorSetLayout = m_DescriptorSetLayouts[descriptorSetIndex];
 			VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout));
 			m_DescriptorSetLayoutMap[descriptorSetIndex] = descriptorSetLayout;
+		}
+
+		for (auto& dsl : m_DescriptorSetLayouts)
+		{
+			if (!dsl)
+			{
+				VkDescriptorSetLayoutCreateInfo layoutInfo{};
+				layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+				layoutInfo.bindingCount = 0;
+				layoutInfo.pBindings = nullptr;
+				VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &dsl));
+			}
 		}
 	}
 
