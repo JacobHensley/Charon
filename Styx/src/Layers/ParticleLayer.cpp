@@ -252,6 +252,20 @@ namespace Charon {
 		m_Emitter.EmissionQuantity = (uint32_t)m_EmitCount;
 		m_Burst = 0.0f;
 
+		// Emit 10
+		{
+			if (m_Emit10)
+			{
+				m_Emitter.EmissionQuantity = 10;
+				m_Emit10 = false;
+			}
+			else
+			{
+				m_Emitter.EmissionQuantity = 0;
+			}
+
+		}
+
 		// Upload emitter buffer
 		m_ParticleBuffers.EmitterBuffer->UpdateBuffer(&m_Emitter);
 		
@@ -274,20 +288,14 @@ namespace Charon {
 			m_BurstIntervalCount = m_BurstInterval;
 		}
 
+		Ref<StorageBuffer> activeParticleBuffer;
+
 		// Swap alive lists
 		{
 			m_ParticleSimulationWriteDescriptors[1].dstBinding = (frame % 2 == 0) ? 1 : 2;
 			m_ParticleSimulationWriteDescriptors[2].dstBinding = (frame % 2 == 0) ? 2 : 1;
 
-			if (frame % 2 == 0)
-			{
-				m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
-
-			}
-			else
-			{
-				m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.AliveBufferPreSimulate->getDescriptorBufferInfo();
-			}
+			activeParticleBuffer = frame % 2 == 0 ? m_ParticleBuffers.AliveBufferPostSimulate : m_ParticleBuffers.AliveBufferPreSimulate;
 
 			frame++;
 		}
@@ -308,7 +316,6 @@ namespace Charon {
 
 		// Particle compute
 		{
-			if (m_Emit10)
 			{
 				// Particle Begin
 				{
@@ -360,13 +367,15 @@ namespace Charon {
 					device->FlushCommandBuffer(commandBuffer, true);
 				}
 
-				// Sorting
-				if (m_Sort)
-				{
-					m_ParticleSort->Sort(m_MaxParticles, m_ParticleBuffers.CameraDistanceBuffer, m_ParticleBuffers.AliveBufferPostSimulate);
-				}
-
 			}
+			
+			// Sorting
+			if (m_Sort)
+				m_DrawParticleIndexBuffer = m_ParticleSort->Sort(m_MaxParticles, m_ParticleBuffers.CameraDistanceBuffer, activeParticleBuffer);
+			else
+				m_DrawParticleIndexBuffer = activeParticleBuffer;
+
+			m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_DrawParticleIndexBuffer->getDescriptorBufferInfo();
 		}
 	}
 
@@ -433,7 +442,8 @@ namespace Charon {
 			ImGui::Begin("Particle settings");
 
 			ImGui::Checkbox("Sort", &m_Sort);
-			ImGui::Checkbox("Emit 10", &m_Emit10);
+			if (ImGui::Button("Emit 10"))
+				m_Emit10 = true;
 
 			if (ImGui::CollapsingHeader("Stats"), ImGuiTreeNodeFlags_DefaultOpen)
 			{
@@ -454,6 +464,14 @@ namespace Charon {
 					m_Pause = true;
 			}
 
+			if (ImGui::Button("Dump Particle Buffer"))
+			{
+				ScopedMap<Particle, StorageBuffer> buffer0(m_ParticleBuffers.ParticleBuffer);
+				for (int i = 0; i < m_MaxParticles; i++)
+				{
+					std::cout << "[" << i << "]" << buffer0->Position.z << '\n';
+				}
+			}
 
 			if (ImGui::Button("Dump Buffer 0"))
 			{

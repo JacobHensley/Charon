@@ -20,7 +20,7 @@ namespace Charon {
 		ParticleSort();
 		void Init(uint32_t maxParticles);
 
-		void Sort(uint32_t count, Ref<StorageBuffer> distanceBuffer, Ref<StorageBuffer> indexBuffer);
+		Ref<StorageBuffer> Sort(uint32_t count, Ref<StorageBuffer> distanceBuffer, Ref<StorageBuffer> indexBuffer);
 
 	private:
 		void SortInternal(VkCommandBuffer commandList);

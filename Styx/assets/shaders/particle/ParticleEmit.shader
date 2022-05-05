@@ -124,16 +124,17 @@ void main()
 {
 	uint particleIndex = gl_GlobalInvocationID.x;
 
-	if (particleIndex < 12)
+	uint particlesToEmit = u_CounterBuffer.RealEmitCount;
+	if (particleIndex < particlesToEmit)
 	{
 		Particle particle;
-		particle.Position = vec3(0, 0, float(particleIndex));
-		particle.Lifetime = u_Emitter.InitialLifetime;
+		particle.Position = vec3(0, 0, float(particleIndex) * 1.5f);
+		particle.Lifetime = 100.0f;// u_Emitter.InitialLifetime;
 		particle.CurrentLife = particle.Lifetime;
 		particle.Rotation = u_Emitter.InitialRotation;
-		particle.Speed = u_Emitter.InitialSpeed;
+		particle.Speed = 0.0f;// u_Emitter.InitialSpeed;
 		particle.Scale = u_Emitter.InitialScale;
-		particle.Color = vec3(float(particleIndex) * (1.0f/12.0f));
+		particle.Color = vec3(float(particleIndex) * (1.0f/float(particlesToEmit)));
 
 		// new particle index retrieved from dead list (pop):
 		uint deadCount = uint(atomicAdd(u_CounterBuffer.DeadCount, -1));
@@ -148,7 +149,7 @@ void main()
 		u_AliveBufferPreSimulate.Indices[aliveCount] = newParticleIndex;
 	}
 
-	if (particleIndex < u_CounterBuffer.RealEmitCount)
+	if (false && particleIndex < u_CounterBuffer.RealEmitCount)
 	{
 		vec2 uv = vec2(u_Emitter.Time, float(particleIndex) / float(THREADCOUNT_EMIT));
 		float seed = 0.12345;

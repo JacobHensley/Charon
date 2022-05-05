@@ -133,14 +133,15 @@ namespace Charon {
     //	BindUAVBuffer(BufferMaps, m_SortDescriptorSetIndirect, 0, 4);
     }
 
-    void ParticleSort::Sort(uint32_t count, Ref<StorageBuffer> distanceBuffer, Ref<StorageBuffer> indexBuffer)
+    Ref<StorageBuffer> ParticleSort::Sort(uint32_t count, Ref<StorageBuffer> distanceBuffer, Ref<StorageBuffer> indexBuffer)
     {
         Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
 
         m_NumKeys = count;
 
         // Copy data into buffers (NOTE: Probably should just use the alreay existing buffer)
-        if (false) {
+        // if (false)
+        {
             VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
             VkBufferCopy copyInfo = { 0 };
             copyInfo.srcOffset = 0;
@@ -163,8 +164,8 @@ namespace Charon {
             device->FlushCommandBuffer(commandBuffer, true);
         }
 
-        m_DstKeyBuffers[0] = distanceBuffer;
-        m_DstPayloadBuffers[0] = indexBuffer;
+        // m_DstKeyBuffers[0] = distanceBuffer;
+        // m_DstPayloadBuffers[0] = indexBuffer;
 
         // Update descriptor sets (NOTE: Should not have to do this)
         {
@@ -214,21 +215,14 @@ namespace Charon {
         }
 
         // Print pre-sorted buffer
-        {
+        if (false) {
             CR_LOG_DEBUG("Pre-sorted:");
             {
                 ScopedMap<uint32_t, StorageBuffer> buffer(m_DstKeyBuffers[0]);
+                ScopedMap<uint32_t, StorageBuffer> buffer2(m_DstPayloadBuffers[0]);
                 for (int i = 0; i < m_NumKeys; i++)
                 {
-                    CR_LOG_DEBUG("    Key: {0}", buffer[i]);
-                }
-            }
-
-            {
-                ScopedMap<uint32_t, StorageBuffer> buffer(m_DstPayloadBuffers[0]);
-                for (int i = 0; i < m_NumKeys; i++)
-                {
-                    CR_LOG_DEBUG("    Value: {0}", buffer[i]);
+                    CR_LOG_DEBUG("    [{0}] {1}", buffer2[i], buffer[i]);
                 }
             }
         }
@@ -240,24 +234,19 @@ namespace Charon {
         device->FlushCommandBuffer(sortCommandBuffer, true);
 
         // Print sorted buffer
-        {
+		if (false) {
             CR_LOG_DEBUG("Sorted:");
             {
-                ScopedMap<uint32_t, StorageBuffer> buffer(m_DstKeyBuffers[0]);
-                for (int i = 0; i < m_NumKeys; i++)
-                {
-                    CR_LOG_DEBUG("    Key: {0}", buffer[i]);
-                }
-            }
-
-            {
-                ScopedMap<uint32_t, StorageBuffer> buffer(m_DstPayloadBuffers[0]);
-                for (int i = 0; i < m_NumKeys; i++)
-                {
-                    CR_LOG_DEBUG("    Value: {0}", buffer[i]);
-                }
+				ScopedMap<uint32_t, StorageBuffer> buffer(m_DstKeyBuffers[0]);
+				ScopedMap<uint32_t, StorageBuffer> buffer2(m_DstPayloadBuffers[0]);
+				for (int i = 0; i < m_NumKeys; i++)
+				{
+					CR_LOG_DEBUG("    [{0}] {1}", buffer2[i], buffer[i]);
+				}
             }
         }
+
+        return m_DstPayloadBuffers[0];
     }
 
     // Perform Parallel Sort (radix-based sort)

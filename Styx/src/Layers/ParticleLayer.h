@@ -125,6 +125,8 @@ namespace Charon {
 
         Ref<ParticleSort> m_ParticleSort;
 
+        Ref<StorageBuffer> m_DrawParticleIndexBuffer;
+
         struct ParticleShaders
         {
             Ref<Shader> Begin;
@@ -157,7 +159,7 @@ namespace Charon {
 
         // Debug stuff
         bool m_Sort = false;
-        bool m_Pause = false;
+        bool m_Pause = true;
         bool m_NextFrame = false;
         bool m_Emit10 = false;
     };
