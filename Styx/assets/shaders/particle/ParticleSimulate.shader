@@ -183,8 +183,7 @@ void main()
 			particle.Position += particle.Velocity * u_Emitter.DeltaTime;
 			particle.Velocity.y -= u_Emitter.Gravity * u_Emitter.DeltaTime;
 			particle.CurrentLife -= u_Emitter.DeltaTime;
-			//particle.Color = GetParticleColor(1.0f - particle.CurrentLife / particle.Lifetime, particle.Color);
-			particle.Color = vec3(float(particleIndex) / 10.0f);
+			particle.Color = GetParticleColor(1.0f - particle.CurrentLife / particle.Lifetime, particle.Color);
 			
 			// write back simulated particle:
 			u_ParticleBuffer.particles[particleIndex] = particle;
@@ -203,7 +202,7 @@ void main()
 			vec3 cameraPosition = inverse(u_CameraBuffer.View)[3].xyz; // TODO: Invert view matrix in C++
 			float particleDist = length(particle.Position - cameraPosition);
 			uint distSQ = uint(particleDist * 1000000.0f);
-			u_CameraDistanceBuffer.DistanceToCamera[particleIndex] = distSQ; // Wicked had it was prevCount not particleIndex
+			u_CameraDistanceBuffer.DistanceToCamera[particleIndex] = distSQ;
 		}
 		else
 		{

@@ -93,10 +93,14 @@ namespace Charon {
         void OnImGUIRender();
 
     private:
+        // Display
         Ref<Camera> m_Camera;
         Ref<ViewportPanel> m_ViewportPanel;
+
+        // Default emitter
         Emitter m_Emitter;
 
+        // Total max particles in the world (not per emitter)
         inline static uint32_t m_MaxParticles = 10;
         inline static uint32_t m_MaxIndices = m_MaxParticles * 6;
 
@@ -157,8 +161,8 @@ namespace Charon {
             Ref<IndexBuffer> IndexBuffer;
         } m_ParticleBuffers;
 
-        // Debug stuff
-        bool m_Sort = false;
+        // Debug settings
+        bool m_EnableSorting = false;
         bool m_Pause = true;
         bool m_NextFrame = false;
         bool m_Emit10 = false;

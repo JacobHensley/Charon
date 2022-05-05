@@ -22,16 +22,16 @@ namespace Charon {
 	void ParticleLayer::Init()
 	{
 		m_ParticleSort = CreateRef<ParticleSort>();
-		m_ParticleSort->Init(10);
+		m_ParticleSort->Init(m_MaxParticles);
 
 		// Emitter settings
 		m_Emitter.Position = glm::vec3(0.0f);
 		m_Emitter.Direction = normalize(glm::vec3(0.0f, 1.0f, 0.0f));
-		m_Emitter.DirectionrRandomness = 2.0f;
-		m_Emitter.VelocityRandomness = 0.0025f;
+		m_Emitter.DirectionrRandomness = 0.0f;
+		m_Emitter.VelocityRandomness = 0.0f;
 		m_Emitter.Gravity = 0.005f;
-		m_Emitter.MaxParticles = 1025;
-		m_Emitter.EmissionQuantity = 0;// 100;
+		m_Emitter.MaxParticles = 10;
+		m_Emitter.EmissionQuantity = 100;
 		m_Emitter.Time = -10.0f;
 		m_Emitter.DeltaTime= -8.5f;
 		m_Emitter.InitialRotation = glm::vec3(0.0f);
@@ -40,7 +40,7 @@ namespace Charon {
 		m_Emitter.InitialSpeed = 5.0f;
 		m_Emitter.InitialColor = glm::vec3(1.0f, 0.0f, 0.0f);
 		
-		m_Count = 0; // 50.0f;
+		m_Count = 0;//50.0f;
 
 		// Shaders
 		m_ParticleShaders.Begin = CreateRef<Shader>("assets/shaders/particle/ParticleBegin.shader");
@@ -66,6 +66,7 @@ namespace Charon {
 		m_ParticleBuffers.CameraDistanceBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 		m_ParticleBuffers.IndexBuffer = CreateRef<IndexBuffer>(sizeof(uint32_t) * m_MaxIndices, m_MaxIndices);
 
+		// Display
 		m_Camera = CreateRef<Camera>(glm::perspectiveFov(glm::radians(45.0f), 1280.0f, 720.0f, 0.1f, 100.0f));
 		m_ViewportPanel = CreateRef<ViewportPanel>();
 
@@ -244,7 +245,7 @@ namespace Charon {
 		m_Emitter.Time = Application::GetApp().GetGlobalTime();
 		m_Emitter.DeltaTime = Application::GetApp().GetDeltaTime();
 
-		// TODO: Fix issue with lower particle per second count
+		// TODO: Fix issue with lower particle per second count (TODO: Clean)
 		// Set emission quantity based on particles per second and delta time
 		m_EmitCount = std::max(0.0f, m_EmitCount - std::floor(m_EmitCount));
 		m_EmitCount += m_Count * m_Emitter.DeltaTime;
@@ -252,8 +253,8 @@ namespace Charon {
 		m_Emitter.EmissionQuantity = (uint32_t)m_EmitCount;
 		m_Burst = 0.0f;
 
-		// Emit 10
-		{
+		// Emit 10 (TODO: Clean)
+		if (false) {
 			if (m_Emit10)
 			{
 				m_Emitter.EmissionQuantity = 10;
@@ -263,13 +264,12 @@ namespace Charon {
 			{
 				m_Emitter.EmissionQuantity = 0;
 			}
-
 		}
 
 		// Upload emitter buffer
 		m_ParticleBuffers.EmitterBuffer->UpdateBuffer(&m_Emitter);
 		
-		// Calculate particles per second
+		// Calculate particles per second (TODO: Clean)
 		static int emissionCount = 0;
 		emissionCount += m_Emitter.EmissionQuantity;
 		m_SecondTimer -= m_Emitter.DeltaTime;
@@ -280,7 +280,7 @@ namespace Charon {
 			m_SecondTimer = 1.0f;
 		}
 
-		// Calculate burst
+		// Calculate burst (TODO: Clean)
 		m_BurstIntervalCount -= m_Emitter.DeltaTime;
 		if (m_BurstIntervalCount <= 0.0f && m_BurstCount > 0)
 		{
@@ -292,9 +292,11 @@ namespace Charon {
 
 		// Swap alive lists
 		{
+			// Swap alive list bindings
 			m_ParticleSimulationWriteDescriptors[1].dstBinding = (frame % 2 == 0) ? 1 : 2;
 			m_ParticleSimulationWriteDescriptors[2].dstBinding = (frame % 2 == 0) ? 2 : 1;
 
+			// Select correct alive list to set a active list for drawing
 			activeParticleBuffer = frame % 2 == 0 ? m_ParticleBuffers.AliveBufferPostSimulate : m_ParticleBuffers.AliveBufferPreSimulate;
 
 			frame++;
@@ -336,8 +338,8 @@ namespace Charon {
 					vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Emit->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
 
 					VkDeviceSize offset = { 0 };
-					//vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
-					vkCmdDispatch(commandBuffer, 1, 1, 1);
+					vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
+					//vkCmdDispatch(commandBuffer, 1, 1, 1);
 
 					device->FlushCommandBuffer(commandBuffer, true);
 				}
@@ -350,8 +352,8 @@ namespace Charon {
 					vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ParticlePipelines.Simulate->GetPipelineLayout(), 0, 1, &m_ParticleSimulationDescriptorSet, 0, 0);
 
 					VkDeviceSize offset = { offsetof(IndirectDrawBuffer, DispatchSimulation) };
-					//vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
-					vkCmdDispatch(commandBuffer, 1, 1, 1);
+					vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
+					//vkCmdDispatch(commandBuffer, 1, 1, 1);
 
 					device->FlushCommandBuffer(commandBuffer, true);
 				}
@@ -368,13 +370,19 @@ namespace Charon {
 				}
 
 			}
-			
-			// Sorting
-			if (m_Sort)
-				m_DrawParticleIndexBuffer = m_ParticleSort->Sort(m_MaxParticles, m_ParticleBuffers.CameraDistanceBuffer, activeParticleBuffer);
-			else
-				m_DrawParticleIndexBuffer = activeParticleBuffer;
 
+			{
+			//	ScopedMap<CounterBuffer, StorageBuffer> buffer0(m_ParticleBuffers.CounterBuffer);
+
+				// Sorting
+				if (m_EnableSorting)
+					m_DrawParticleIndexBuffer = m_ParticleSort->Sort(m_MaxParticles, m_ParticleBuffers.CameraDistanceBuffer, activeParticleBuffer);
+				else
+					m_DrawParticleIndexBuffer = activeParticleBuffer;
+			}
+
+
+			// Set alive post simulion buffer in particle rendering to correct index buffer
 			m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_DrawParticleIndexBuffer->getDescriptorBufferInfo();
 		}
 	}
@@ -441,7 +449,7 @@ namespace Charon {
 		{
 			ImGui::Begin("Particle settings");
 
-			ImGui::Checkbox("Sort", &m_Sort);
+			ImGui::Checkbox("Sort", &m_EnableSorting);
 			if (ImGui::Button("Emit 10"))
 				m_Emit10 = true;
 
