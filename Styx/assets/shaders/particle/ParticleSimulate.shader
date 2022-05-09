@@ -201,8 +201,8 @@ void main()
 			// store squared distance to main camera:
 			vec3 cameraPosition = inverse(u_CameraBuffer.View)[3].xyz; // TODO: Invert view matrix in C++
 			float particleDist = length(particle.Position - cameraPosition);
-			uint distSQ = uint(particleDist * 1000000.0f);
-			u_CameraDistanceBuffer.DistanceToCamera[particleIndex] = distSQ;
+			uint distSQ = -uint(particleDist * 1000000.0f);
+			u_CameraDistanceBuffer.DistanceToCamera[newAliveIndex] = distSQ;
 		}
 		else
 		{

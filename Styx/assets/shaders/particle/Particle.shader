@@ -4,6 +4,7 @@
 layout(location = 0) in vec3 a_Position;
 
 layout(location = 0) out vec3 v_Color;
+layout(location = 1) out float v_Alpha;
 
 struct Particle
 {
@@ -33,6 +34,11 @@ layout(std430, binding = 1) buffer AliveBufferPostSimulate
     uint Indices[];
 } u_AliveBufferPostSimulate;
 
+layout(std140, binding = 3) uniform ParticleDrawDetails
+{
+    uint IndexOffset;
+} u_ParticleDrawDetails;
+
 vec3 c_Vertices[4] = vec3[4](
     vec3(-0.5f, -0.5f, 0.0f),
     vec3( 0.5f, -0.5f, 0.0f),
@@ -45,6 +51,7 @@ void main()
     uint particleIndex = u_AliveBufferPostSimulate.Indices[gl_VertexIndex / 4];
     Particle particle = particles[particleIndex];
     v_Color = particle.Color;
+    v_Alpha = particle.Lifetime / 3.0f;
 
     vec3 camRightWS = { u_CameraBuffer.View[0][0],  u_CameraBuffer.View[1][0], u_CameraBuffer.View[2][0] }; // X
     vec3 camUpWS = { u_CameraBuffer.View[0][1],  u_CameraBuffer.View[1][1], u_CameraBuffer.View[2][1] };    // Y
@@ -61,11 +68,12 @@ void main()
 #version 450
 
 layout(location = 0) in vec3 v_Color;
+layout(location = 1) in float v_Alpha;
 
 layout(location = 0) out vec4 outColor;
 
 void main()
 {
     outColor.rgb = v_Color;
-    outColor.a = 1.0;
+    outColor.a = v_Alpha;
 }

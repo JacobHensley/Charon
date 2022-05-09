@@ -143,9 +143,13 @@ namespace Charon {
         // if (false)
         {
             VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-            VkBufferCopy copyInfo = { 0 };
-            copyInfo.srcOffset = 0;
-            copyInfo.size = sizeof(uint32_t) * m_NumKeys;
+
+			VkBufferCopy indexBufferCopyInfo = { 0 };
+            indexBufferCopyInfo.srcOffset = 0;
+            indexBufferCopyInfo.size = sizeof(uint32_t) * m_NumKeys;
+
+            VkBufferCopy distanceBufferCopyInfo = indexBufferCopyInfo;
+            distanceBufferCopyInfo.srcOffset = 0;// (m_MaxParticles - count) * sizeof(uint32_t);
 
             VkBufferMemoryBarrier barriers[2] = {
                 BufferTransition(m_DstKeyBuffers[0]->GetBuffer(), VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, m_DstKeyBuffers[0]->GetSize()),
@@ -154,8 +158,8 @@ namespace Charon {
 
             vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 2, barriers, 0, nullptr);
 
-            vkCmdCopyBuffer(commandBuffer, distanceBuffer->GetBuffer(), m_DstKeyBuffers[0]->GetBuffer(), 1, &copyInfo);
-            vkCmdCopyBuffer(commandBuffer, indexBuffer->GetBuffer(), m_DstPayloadBuffers[0]->GetBuffer(), 1, &copyInfo);
+            vkCmdCopyBuffer(commandBuffer, distanceBuffer->GetBuffer(), m_DstKeyBuffers[0]->GetBuffer(), 1, &distanceBufferCopyInfo);
+            vkCmdCopyBuffer(commandBuffer, indexBuffer->GetBuffer(), m_DstPayloadBuffers[0]->GetBuffer(), 1, &indexBufferCopyInfo);
 
             barriers[0] = BufferTransition(m_DstKeyBuffers[0]->GetBuffer(), VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, m_DstKeyBuffers[0]->GetSize());
             barriers[1] = BufferTransition(m_DstPayloadBuffers[0]->GetBuffer(), VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, m_DstPayloadBuffers[0]->GetSize());

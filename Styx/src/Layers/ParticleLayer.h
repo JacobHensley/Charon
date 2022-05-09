@@ -46,6 +46,11 @@ namespace Charon {
 		float Position;
 	};
 
+    struct ParticleDrawDetails
+    {
+        uint32_t IndexOffset = 0;
+    };
+
     struct Emitter
     {
         glm::vec3 InitialRotation;
@@ -99,9 +104,10 @@ namespace Charon {
 
         // Default emitter
         Emitter m_Emitter;
+        ParticleDrawDetails m_ParticleDrawDetails;
 
         // Total max particles in the world (not per emitter)
-        inline static uint32_t m_MaxParticles = 10;
+        inline static uint32_t m_MaxParticles = 1'000'000;
         inline static uint32_t m_MaxIndices = m_MaxParticles * 6;
 
         float m_EmitCount = 0.0f;
@@ -158,6 +164,7 @@ namespace Charon {
             Ref<StorageBuffer> IndirectDrawBuffer;
             Ref<StorageBuffer> VertexBuffer;
             Ref<StorageBuffer> CameraDistanceBuffer;
+			Ref<UniformBuffer> ParticleDrawDetails;
             Ref<IndexBuffer> IndexBuffer;
         } m_ParticleBuffers;
 

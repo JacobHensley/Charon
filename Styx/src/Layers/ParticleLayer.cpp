@@ -27,8 +27,8 @@ namespace Charon {
 		// Emitter settings
 		m_Emitter.Position = glm::vec3(0.0f);
 		m_Emitter.Direction = normalize(glm::vec3(0.0f, 1.0f, 0.0f));
-		m_Emitter.DirectionrRandomness = 0.0f;
-		m_Emitter.VelocityRandomness = 0.0f;
+		m_Emitter.DirectionrRandomness = 1.0f;
+		m_Emitter.VelocityRandomness = 1.0f;
 		m_Emitter.Gravity = 0.005f;
 		m_Emitter.MaxParticles = 10;
 		m_Emitter.EmissionQuantity = 100;
@@ -41,6 +41,7 @@ namespace Charon {
 		m_Emitter.InitialColor = glm::vec3(1.0f, 0.0f, 0.0f);
 		
 		m_Count = 0;//50.0f;
+		m_EmitCount = 0;
 
 		// Shaders
 		m_ParticleShaders.Begin = CreateRef<Shader>("assets/shaders/particle/ParticleBegin.shader");
@@ -64,6 +65,7 @@ namespace Charon {
 		m_ParticleBuffers.IndirectDrawBuffer = CreateRef<StorageBuffer>(sizeof(IndirectDrawBuffer), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 		m_ParticleBuffers.VertexBuffer = CreateRef<StorageBuffer>(sizeof(ParticleVertex) * 4 * m_MaxParticles, false, true);
 		m_ParticleBuffers.CameraDistanceBuffer = CreateRef<StorageBuffer>(sizeof(uint32_t) * m_MaxParticles, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+		m_ParticleBuffers.ParticleDrawDetails = CreateRef<UniformBuffer>(&m_ParticleDrawDetails, sizeof(ParticleDrawDetails));
 		m_ParticleBuffers.IndexBuffer = CreateRef<IndexBuffer>(sizeof(uint32_t) * m_MaxIndices, m_MaxIndices);
 
 		// Display
@@ -136,13 +138,21 @@ namespace Charon {
 			aliveBufferWriteDescriptor.dstBinding = 1;
 			aliveBufferWriteDescriptor.pBufferInfo = &m_ParticleBuffers.AliveBufferPostSimulate->getDescriptorBufferInfo();
 			aliveBufferWriteDescriptor.descriptorCount = 1;
-
+			
 			VkWriteDescriptorSet& cameraWriteDescriptor = m_ParticleRendererWriteDescriptors.emplace_back();
 			cameraWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			cameraWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			cameraWriteDescriptor.dstBinding = 2;
 			cameraWriteDescriptor.pBufferInfo = &renderer->GetCameraUB()->getDescriptorBufferInfo();
 			cameraWriteDescriptor.descriptorCount = 1;
+
+			VkWriteDescriptorSet& particleDrawDetailsWriteDescriptor = m_ParticleRendererWriteDescriptors.emplace_back();
+			particleDrawDetailsWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			particleDrawDetailsWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			particleDrawDetailsWriteDescriptor.dstBinding = 3;
+			particleDrawDetailsWriteDescriptor.pBufferInfo = &m_ParticleBuffers.ParticleDrawDetails->getDescriptorBufferInfo();
+			particleDrawDetailsWriteDescriptor.descriptorCount = 1;
+
 		}
 
 		// Particle simulation write descriptors
@@ -254,7 +264,8 @@ namespace Charon {
 		m_Burst = 0.0f;
 
 		// Emit 10 (TODO: Clean)
-		if (false) {
+		if (false)
+		{
 			if (m_Emit10)
 			{
 				m_Emitter.EmissionQuantity = 10;
@@ -372,15 +383,24 @@ namespace Charon {
 			}
 
 			{
-			//	ScopedMap<CounterBuffer, StorageBuffer> buffer0(m_ParticleBuffers.CounterBuffer);
+				ScopedMap<CounterBuffer, StorageBuffer> buffer0(m_ParticleBuffers.CounterBuffer);
+				uint32_t activeParticleCount = buffer0->AliveCount_AfterSimulation;
 
 				// Sorting
-				if (m_EnableSorting)
-					m_DrawParticleIndexBuffer = m_ParticleSort->Sort(m_MaxParticles, m_ParticleBuffers.CameraDistanceBuffer, activeParticleBuffer);
+				if (m_EnableSorting && activeParticleCount > 0)
+				{
+					std::cout << "Sorting " << activeParticleCount << " particles\n";
+					m_DrawParticleIndexBuffer = m_ParticleSort->Sort(activeParticleCount, m_ParticleBuffers.CameraDistanceBuffer, activeParticleBuffer);
+					m_ParticleDrawDetails.IndexOffset = m_MaxParticles - activeParticleCount;
+				}
 				else
+				{
 					m_DrawParticleIndexBuffer = activeParticleBuffer;
+					m_ParticleDrawDetails.IndexOffset = 0;
+				}
+	
+				m_ParticleBuffers.ParticleDrawDetails->UpdateBuffer(&m_ParticleDrawDetails);
 			}
-
 
 			// Set alive post simulion buffer in particle rendering to correct index buffer
 			m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_DrawParticleIndexBuffer->getDescriptorBufferInfo();
@@ -475,11 +495,25 @@ namespace Charon {
 			if (ImGui::Button("Dump Particle Buffer"))
 			{
 				ScopedMap<Particle, StorageBuffer> buffer0(m_ParticleBuffers.ParticleBuffer);
+				std::cout << "Dump Particle Buffer\n";
 				for (int i = 0; i < m_MaxParticles; i++)
 				{
-					std::cout << "[" << i << "]" << buffer0->Position.z << '\n';
+					std::cout << "[" << i << "]" << buffer0[i].Position.y << " (" << buffer0[i].Color.r << ")" << '\n';
 				}
+				std::cout << "===========================================\n";
 			}
+
+			if (ImGui::Button("Dump Sorted Index Buffer"))
+			{
+				ScopedMap<uint32_t, StorageBuffer> buffer0(m_DrawParticleIndexBuffer);
+				std::cout << "Dump Draw Particle Index Buffer\n";
+				for (int i = 0; i < m_MaxParticles; i++)
+				{
+					std::cout << "[" << i << "]" << buffer0[i] << '\n';
+				}
+				std::cout << "===========================================\n";
+			}
+
 
 			if (ImGui::Button("Dump Buffer 0"))
 			{
