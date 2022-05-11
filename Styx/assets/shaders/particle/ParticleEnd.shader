@@ -81,7 +81,7 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	uint EmissionQuantity;
 	vec3 Direction;
 	uint MaxParticles;
-	float DirectionrRandomness;
+	float DirectionRandomness;
 	float VelocityRandomness;
 
 	uint GradientPointCount;
@@ -97,6 +97,7 @@ layout(binding = 8) uniform CameraBuffer
 	mat4 ViewProjection;
 	mat4 InverseViewProjection;
 	mat4 View;
+	mat4 InverseView;
 } u_CameraBuffer;
 
 layout(std430, binding = 9) buffer CameraDistanceBuffer

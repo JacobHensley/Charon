@@ -27,7 +27,7 @@ namespace Charon {
 		// Emitter settings
 		m_Emitter.Position = glm::vec3(0.0f);
 		m_Emitter.Direction = normalize(glm::vec3(0.0f, 1.0f, 0.0f));
-		m_Emitter.DirectionrRandomness = 1.0f;
+		m_Emitter.DirectionRandomness = 1.0f;
 		m_Emitter.VelocityRandomness = 1.0f;
 		m_Emitter.Gravity = 0.005f;
 		m_Emitter.MaxParticles = 10;
@@ -40,8 +40,8 @@ namespace Charon {
 		m_Emitter.InitialSpeed = 5.0f;
 		m_Emitter.InitialColor = glm::vec3(1.0f, 0.0f, 0.0f);
 		
-		m_Count = 0;//50.0f;
-		m_EmitCount = 0;
+		m_RequestedParticlesPerSecond = 0;
+		m_RequestedParticlesPerFrame = 0;
 
 		// Shaders
 		m_ParticleShaders.Begin = CreateRef<Shader>("assets/shaders/particle/ParticleBegin.shader");
@@ -255,50 +255,14 @@ namespace Charon {
 		m_Emitter.Time = Application::GetApp().GetGlobalTime();
 		m_Emitter.DeltaTime = Application::GetApp().GetDeltaTime();
 
-		// TODO: Fix issue with lower particle per second count (TODO: Clean)
 		// Set emission quantity based on particles per second and delta time
-		m_EmitCount = std::max(0.0f, m_EmitCount - std::floor(m_EmitCount));
-		m_EmitCount += m_Count * m_Emitter.DeltaTime;
-		m_EmitCount += m_Burst;
-		m_Emitter.EmissionQuantity = (uint32_t)m_EmitCount;
-		m_Burst = 0.0f;
-
-		// Emit 10 (TODO: Clean)
-		if (false)
-		{
-			if (m_Emit10)
-			{
-				m_Emitter.EmissionQuantity = 10;
-				m_Emit10 = false;
-			}
-			else
-			{
-				m_Emitter.EmissionQuantity = 0;
-			}
-		}
+		m_RequestedParticlesPerFrame = std::max(0.0f, m_RequestedParticlesPerFrame - std::floor(m_RequestedParticlesPerFrame));
+		m_RequestedParticlesPerFrame += m_RequestedParticlesPerSecond * m_Emitter.DeltaTime;
+		m_Emitter.EmissionQuantity = (uint32_t)m_RequestedParticlesPerFrame;
 
 		// Upload emitter buffer
 		m_ParticleBuffers.EmitterBuffer->UpdateBuffer(&m_Emitter);
 		
-		// Calculate particles per second (TODO: Clean)
-		static int emissionCount = 0;
-		emissionCount += m_Emitter.EmissionQuantity;
-		m_SecondTimer -= m_Emitter.DeltaTime;
-		if (m_SecondTimer <= 0.0f)
-		{
-			m_ParticlesEmittedPerSecond = emissionCount;
-			emissionCount = 0;
-			m_SecondTimer = 1.0f;
-		}
-
-		// Calculate burst (TODO: Clean)
-		m_BurstIntervalCount -= m_Emitter.DeltaTime;
-		if (m_BurstIntervalCount <= 0.0f && m_BurstCount > 0)
-		{
-			m_Burst += m_BurstCount;
-			m_BurstIntervalCount = m_BurstInterval;
-		}
-
 		Ref<StorageBuffer> activeParticleBuffer;
 
 		// Swap alive lists
@@ -350,7 +314,6 @@ namespace Charon {
 
 					VkDeviceSize offset = { 0 };
 					vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
-					//vkCmdDispatch(commandBuffer, 1, 1, 1);
 
 					device->FlushCommandBuffer(commandBuffer, true);
 				}
@@ -364,7 +327,6 @@ namespace Charon {
 
 					VkDeviceSize offset = { offsetof(IndirectDrawBuffer, DispatchSimulation) };
 					vkCmdDispatchIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), offset);
-					//vkCmdDispatch(commandBuffer, 1, 1, 1);
 
 					device->FlushCommandBuffer(commandBuffer, true);
 				}
@@ -382,20 +344,19 @@ namespace Charon {
 
 			}
 
+			// Sorting
 			{
-				ScopedMap<CounterBuffer, StorageBuffer> buffer0(m_ParticleBuffers.CounterBuffer);
-				uint32_t activeParticleCount = buffer0->AliveCount_AfterSimulation;
+				ScopedMap<CounterBuffer, StorageBuffer> counterBuffer(m_ParticleBuffers.CounterBuffer);
+				uint32_t activeParticleCount = counterBuffer->AliveCount_AfterSimulation;
 
-				// Sorting
 				if (m_EnableSorting && activeParticleCount > 0)
 				{
-					std::cout << "Sorting " << activeParticleCount << " particles\n";
-					m_DrawParticleIndexBuffer = m_ParticleSort->Sort(activeParticleCount, m_ParticleBuffers.CameraDistanceBuffer, activeParticleBuffer);
+					m_ParticleBuffers.DrawParticleIndexBuffer = m_ParticleSort->Sort(activeParticleCount, m_ParticleBuffers.CameraDistanceBuffer, activeParticleBuffer);
 					m_ParticleDrawDetails.IndexOffset = m_MaxParticles - activeParticleCount;
 				}
 				else
 				{
-					m_DrawParticleIndexBuffer = activeParticleBuffer;
+					m_ParticleBuffers.DrawParticleIndexBuffer = activeParticleBuffer;
 					m_ParticleDrawDetails.IndexOffset = 0;
 				}
 	
@@ -403,7 +364,7 @@ namespace Charon {
 			}
 
 			// Set alive post simulion buffer in particle rendering to correct index buffer
-			m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_DrawParticleIndexBuffer->getDescriptorBufferInfo();
+			m_ParticleRendererWriteDescriptors[1].pBufferInfo = &m_ParticleBuffers.DrawParticleIndexBuffer->getDescriptorBufferInfo();
 		}
 	}
 
@@ -469,80 +430,12 @@ namespace Charon {
 		{
 			ImGui::Begin("Particle settings");
 
-			ImGui::Checkbox("Sort", &m_EnableSorting);
-			if (ImGui::Button("Emit 10"))
-				m_Emit10 = true;
+			ScopedMap<CounterBuffer, StorageBuffer> counterBuffer(m_ParticleBuffers.CounterBuffer);
+			ImGui::Text("Alive Particles: %u", counterBuffer->AliveCount_AfterSimulation);
 
-			if (ImGui::CollapsingHeader("Stats"), ImGuiTreeNodeFlags_DefaultOpen)
-			{
-				ImGui::Text("Particle Count: %d", m_ParticleCount);
-			}
+			ImGui::NewLine();
 
-			if (m_Pause)
-			{
-				if (ImGui::Button("Play"))
-					m_Pause = false;
-				ImGui::SameLine();
-				if (ImGui::Button("Next Frame"))
-					m_NextFrame = true;
-			}
-			else
-			{
-				if (ImGui::Button("Pause"))
-					m_Pause = true;
-			}
-
-			if (ImGui::Button("Dump Particle Buffer"))
-			{
-				ScopedMap<Particle, StorageBuffer> buffer0(m_ParticleBuffers.ParticleBuffer);
-				std::cout << "Dump Particle Buffer\n";
-				for (int i = 0; i < m_MaxParticles; i++)
-				{
-					std::cout << "[" << i << "]" << buffer0[i].Position.y << " (" << buffer0[i].Color.r << ")" << '\n';
-				}
-				std::cout << "===========================================\n";
-			}
-
-			if (ImGui::Button("Dump Sorted Index Buffer"))
-			{
-				ScopedMap<uint32_t, StorageBuffer> buffer0(m_DrawParticleIndexBuffer);
-				std::cout << "Dump Draw Particle Index Buffer\n";
-				for (int i = 0; i < m_MaxParticles; i++)
-				{
-					std::cout << "[" << i << "]" << buffer0[i] << '\n';
-				}
-				std::cout << "===========================================\n";
-			}
-
-
-			if (ImGui::Button("Dump Buffer 0"))
-			{
-				ScopedMap<uint32_t, StorageBuffer> buffer0(m_ParticleBuffers.AliveBufferPreSimulate);
-				for (int i = 0; i < m_MaxParticles; i+=4)
-				{
-					std::cout << buffer0[i] << ' ' << buffer0[i+1] << ' ' << buffer0[i + 2] << ' ' << buffer0[i + 3] << '\n';
-				}
-			}
-
-			if (ImGui::Button("Dump Buffer 1"))
-			{
-				ScopedMap<uint32_t, StorageBuffer> buffer0(m_ParticleBuffers.AliveBufferPostSimulate);
-				for (int i = 0; i < m_MaxParticles; i += 4)
-				{
-					std::cout << buffer0[i] << ' ' << buffer0[i + 1] << ' ' << buffer0[i + 2] << ' ' << buffer0[i + 3] << '\n';
-				}
-			}
-
-			if (ImGui::Button("Dump Camera Distance Buffer "))
-			{
-				ScopedMap<uint32_t, StorageBuffer> buffer0(m_ParticleBuffers.CameraDistanceBuffer);
-				for (int i = 0; i < m_MaxParticles; i++)
-				{
-					std::cout << buffer0[i] << '\n';
-				}
-			}
-
-			if (ImGui::CollapsingHeader("Initial Settings"), ImGuiTreeNodeFlags_DefaultOpen)
+			if (ImGui::CollapsingHeader("Initial Settings", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				ImGui::DragFloat3("Initial Rotation", glm::value_ptr(m_Emitter.InitialRotation), 0.1f);
 				ImGui::DragFloat3("Initial Scale", glm::value_ptr(m_Emitter.InitialScale), 0.1f, 0.0f);
@@ -552,22 +445,105 @@ namespace Charon {
 				ImGui::DragFloat("Gravity Modifier", &m_Emitter.Gravity, 0.1f);
 			}
 
-			if (ImGui::CollapsingHeader("Emitter Settings"), ImGuiTreeNodeFlags_DefaultOpen)
+			if (ImGui::CollapsingHeader("Emitter Settings", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				ImGui::DragFloat3("Emitter Postion", glm::value_ptr(m_Emitter.Position), 0.1f);
-				ImGui::DragFloat("Emission Quantity", &m_Count, 0.1f, 0.0f);
-				ImGui::DragFloat("Burst Count", &m_BurstCount, 0.1f, 0.0f);
-				ImGui::DragFloat("Burst Interval", &m_BurstInterval, 0.1f, 0.0f);
+				ImGui::DragFloat("Emission Quantity", &m_RequestedParticlesPerSecond, 0.1f, 0.0f);
 			}
 
-			if (ImGui::CollapsingHeader("Over-Lifetime Settings"), ImGuiTreeNodeFlags_DefaultOpen)
+			if (ImGui::CollapsingHeader("Over-Lifetime Settings", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				static ImGradientMark* draggingMark = nullptr;
 				static ImGradientMark* selectedMark = nullptr;
 				bool isDragging = false;
 
-				// TODO: Add way to disable widget
 				bool updated = GradientEditor(&m_ColorLifetimeGradient, "Color Over Lifetime", draggingMark, selectedMark, isDragging);
+			}
+
+			if (ImGui::CollapsingHeader("Debug"))
+			{
+				ImGui::Checkbox("Enable Sorting", &m_EnableSorting);
+
+				if (m_Pause)
+				{
+					if (ImGui::Button("Play"))
+						m_Pause = false;
+					ImGui::SameLine();
+					if (ImGui::Button("Next Frame"))
+						m_NextFrame = true;
+				}
+				else
+				{
+					if (ImGui::Button("Pause"))
+						m_Pause = true;
+				}
+
+				if (ImGui::Button("Dump Particle Buffer"))
+				{
+					ScopedMap<Particle, StorageBuffer> buffer(m_ParticleBuffers.ParticleBuffer);
+					CR_LOG_DEBUG("Dumped Particle Buffer:");
+					for (int i = 0; i < m_MaxParticles; i++)
+					{
+						CR_LOG_DEBUG("[{0}] {1} ({2})", i, buffer[i].Position.y, buffer[i].Color.r);
+					}
+					CR_LOG_DEBUG("===========================================\n");
+				}
+
+				if (ImGui::Button("Dump Counter Buffer"))
+				{
+					ScopedMap<CounterBuffer, StorageBuffer> buffer(m_ParticleBuffers.CounterBuffer);
+					CR_LOG_DEBUG("Dumped Counter Buffer:");
+					CR_LOG_DEBUG("AliveCount {0}", buffer->AliveCount);
+					CR_LOG_DEBUG("DeadCount {0}", buffer->DeadCount);
+					CR_LOG_DEBUG("RealEmitCount {0}", buffer->RealEmitCount);
+					CR_LOG_DEBUG("AliveCount_AfterSimulation {0}", buffer->AliveCount_AfterSimulation);
+					CR_LOG_DEBUG("===========================================\n");
+				}
+
+				if (ImGui::Button("Dump Draw Index Buffer"))
+				{
+					ScopedMap<uint32_t, StorageBuffer> buffer(m_ParticleBuffers.DrawParticleIndexBuffer);
+					CR_LOG_DEBUG("Dumped Draw Particle Index Buffer:");
+					for (int i = 0; i < m_MaxParticles; i++)
+					{
+						CR_LOG_DEBUG("[{0}] {1}", i, buffer[i]);
+					}
+					CR_LOG_DEBUG("===========================================\n");
+				}
+
+
+				if (ImGui::Button("Dump AlivePreSimulate Buffer"))
+				{
+					ScopedMap<uint32_t, StorageBuffer> buffer(m_ParticleBuffers.AliveBufferPreSimulate);
+					CR_LOG_DEBUG("Dumped AlivePreSimulate Buffer:");
+					for (int i = 0; i < m_MaxParticles; i += 4)
+					{
+						CR_LOG_DEBUG("{0} {1} {2} {3}", buffer[i], buffer[i + 1], buffer[i + 2], buffer[i + 3]);
+					}
+					CR_LOG_DEBUG("===========================================\n");
+				}
+
+				if (ImGui::Button("Dump AlivePostSimulate Buffer"))
+				{
+					CR_LOG_DEBUG("Dumped AlivePostSimulate Buffer:");
+					ScopedMap<uint32_t, StorageBuffer> buffer(m_ParticleBuffers.AliveBufferPostSimulate);
+					for (int i = 0; i < m_MaxParticles; i += 4)
+					{
+						CR_LOG_DEBUG("{0} {1} {2} {3}", buffer[i], buffer[i + 1], buffer[i + 2], buffer[i + 3]);
+					}
+					CR_LOG_DEBUG("===========================================\n");
+				}
+
+				if (ImGui::Button("Dump Camera Distance Buffer"))
+				{
+					CR_LOG_DEBUG("Dumped Camera Distance Buffer:");
+					ScopedMap<uint32_t, StorageBuffer> buffer(m_ParticleBuffers.CameraDistanceBuffer);
+					for (int i = 0; i < m_MaxParticles; i++)
+					{
+						CR_LOG_DEBUG("{0}", buffer[i]);
+					}
+					CR_LOG_DEBUG("===========================================\n");
+				}
 			}
 
 			ImGui::End();

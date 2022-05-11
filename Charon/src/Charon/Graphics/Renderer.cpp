@@ -80,6 +80,7 @@ namespace Charon {
 		m_CameraBuffer.ViewProjection = m_ActiveCamera->GetViewProjection();
 		m_CameraBuffer.InverseViewProjection = m_ActiveCamera->GetInverseVP();
 		m_CameraBuffer.View = m_ActiveCamera->GetViewMatrix();
+		m_CameraBuffer.InverseView = m_ActiveCamera->GetInverseViewMatrix();
 		m_CameraUniformBuffer->UpdateBuffer(&m_CameraBuffer);
 
 		UniformBufferDescription cameraBufferDescription = m_Shader->GetUniformBufferDescriptions()[0];

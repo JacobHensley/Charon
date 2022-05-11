@@ -82,7 +82,7 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	uint EmissionQuantity;
 	vec3 Direction;
 	uint MaxParticles;
-	float DirectionrRandomness;
+	float DirectionRandomness;
 	float VelocityRandomness;
 
 	uint GradientPointCount;
@@ -98,6 +98,7 @@ layout(binding = 8) uniform CameraBuffer
 	mat4 ViewProjection;
 	mat4 InverseViewProjection;
 	mat4 View;
+	mat4 InverseView;
 } u_CameraBuffer;
 
 layout(std430, binding = 9) buffer CameraDistanceBuffer
@@ -179,7 +180,7 @@ void main()
 
 		if (particle.CurrentLife > 0)
 		{
-			// simulate
+			// simulate:
 			particle.Position += particle.Velocity * u_Emitter.DeltaTime;
 			particle.Velocity.y -= u_Emitter.Gravity * u_Emitter.DeltaTime;
 			particle.CurrentLife -= u_Emitter.DeltaTime;
@@ -199,7 +200,7 @@ void main()
 			u_VertexBuffer.vertices[(v0 + 3)].Position = particle.Position + vec3(-0.5, 0.5, 0.0);
 
 			// store squared distance to main camera:
-			vec3 cameraPosition = inverse(u_CameraBuffer.View)[3].xyz; // TODO: Invert view matrix in C++
+			vec3 cameraPosition = u_CameraBuffer.InverseView[3].xyz;
 			float particleDist = length(particle.Position - cameraPosition);
 			uint distSQ = -uint(particleDist * 1000000.0f);
 			u_CameraDistanceBuffer.DistanceToCamera[newAliveIndex] = distSQ;

@@ -27,6 +27,7 @@ layout(set = 0, binding = 2) uniform CameraBuffer
     mat4 ViewProjection;
     mat4 InverseViewProjection;
     mat4 View;
+    mat4 InverseView;
 } u_CameraBuffer;
 
 layout(std430, binding = 1) buffer AliveBufferPostSimulate

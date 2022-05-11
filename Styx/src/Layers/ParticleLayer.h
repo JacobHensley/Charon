@@ -63,7 +63,7 @@ namespace Charon {
         uint32_t EmissionQuantity;
         glm::vec3 Direction;
         uint32_t MaxParticles;
-        float DirectionrRandomness;
+        float DirectionRandomness;
         float VelocityRandomness;
 
 		uint32_t GradientPointCount;
@@ -106,36 +106,28 @@ namespace Charon {
         Emitter m_Emitter;
         ParticleDrawDetails m_ParticleDrawDetails;
 
-        // Total max particles in the world (not per emitter)
+        // Total max particles in the world
         inline static uint32_t m_MaxParticles = 1'000'000;
         inline static uint32_t m_MaxIndices = m_MaxParticles * 6;
 
-        float m_EmitCount = 0.0f;
-        float m_Count = 0.0f;
-
-        float m_Burst = 0.0f;
-        float m_BurstCount = 0.0f;
-        float m_BurstInterval = 0.0f;
-        float m_BurstIntervalCount = 0.0f;
-
-        float m_SecondTimer = 1.0f;
-        uint32_t m_ParticlesEmittedPerSecond = 0;
-        uint32_t m_ParticleCount = 0;
-
+        float m_RequestedParticlesPerFrame = 0.0f;
+        float m_RequestedParticlesPerSecond = 0.0f;
+        
         ImGradient m_ColorLifetimeGradient;
-
-        Ref<VulkanPipeline> m_ParticleRendererPipeline;
-        Ref<Shader> m_ParticleShader;
-
-        VkDescriptorSet m_ParticleRendererDescriptorSet = nullptr;
-        std::vector<VkWriteDescriptorSet> m_ParticleRendererWriteDescriptors;
-
-        VkDescriptorSet m_ParticleSimulationDescriptorSet = nullptr;
-        std::vector<VkWriteDescriptorSet> m_ParticleSimulationWriteDescriptors;
 
         Ref<ParticleSort> m_ParticleSort;
 
-        Ref<StorageBuffer> m_DrawParticleIndexBuffer;
+        // Particle rendering
+        Ref<VulkanPipeline> m_ParticleRendererPipeline;
+        Ref<Shader> m_ParticleShader;
+
+        // DescriptorSet for rendering
+        VkDescriptorSet m_ParticleRendererDescriptorSet = nullptr;
+        std::vector<VkWriteDescriptorSet> m_ParticleRendererWriteDescriptors;
+
+        // DescriptorSet for simulation
+        VkDescriptorSet m_ParticleSimulationDescriptorSet = nullptr;
+        std::vector<VkWriteDescriptorSet> m_ParticleSimulationWriteDescriptors;
 
         struct ParticleShaders
         {
@@ -164,15 +156,15 @@ namespace Charon {
             Ref<StorageBuffer> IndirectDrawBuffer;
             Ref<StorageBuffer> VertexBuffer;
             Ref<StorageBuffer> CameraDistanceBuffer;
+            Ref<StorageBuffer> DrawParticleIndexBuffer;
 			Ref<UniformBuffer> ParticleDrawDetails;
             Ref<IndexBuffer> IndexBuffer;
         } m_ParticleBuffers;
 
         // Debug settings
-        bool m_EnableSorting = false;
-        bool m_Pause = true;
+        bool m_EnableSorting = true;
+        bool m_Pause = false;
         bool m_NextFrame = false;
-        bool m_Emit10 = false;
     };
 
 }

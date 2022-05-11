@@ -22,7 +22,6 @@ struct Particle
 	vec3 Velocity;
 };
 
-
 layout(std430, binding = 0) buffer ParticleBuffer
 {
 	Particle particles[];
@@ -82,7 +81,7 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	uint EmissionQuantity;
 	vec3 Direction;
 	uint MaxParticles;
-	float DirectionrRandomness;
+	float DirectionRandomness;
 	float VelocityRandomness;
 
 	uint GradientPointCount;
@@ -98,6 +97,7 @@ layout(binding = 8) uniform CameraBuffer
 	mat4 ViewProjection;
 	mat4 InverseViewProjection;
 	mat4 View;
+	mat4 InverseView;
 } u_CameraBuffer;
 
 layout(std430, binding = 9) buffer CameraDistanceBuffer
@@ -124,34 +124,6 @@ void main()
 {
 	uint particleIndex = gl_GlobalInvocationID.x;
 
-	// Test code for emitting ten particles in a row
-	{
-		uint particlesToEmit = u_CounterBuffer.RealEmitCount;
-		if (false && particleIndex < particlesToEmit)
-		{
-			Particle particle;
-			particle.Position = vec3(0, 0, float(particleIndex) * 1.5f);
-			particle.Lifetime = 100.0f;// u_Emitter.InitialLifetime;
-			particle.CurrentLife = particle.Lifetime;
-			particle.Rotation = u_Emitter.InitialRotation;
-			particle.Speed = 0.0f;// u_Emitter.InitialSpeed;
-			particle.Scale = u_Emitter.InitialScale;
-			particle.Color = vec3(float(particleIndex) * (1.0f / float(particlesToEmit)));
-
-			// new particle index retrieved from dead list (pop):
-			uint deadCount = uint(atomicAdd(u_CounterBuffer.DeadCount, -1));
-			// 1000
-			uint newParticleIndex = u_DeadBuffer.Indices[deadCount - 1];
-
-			// write out the new particle:
-			u_ParticleBuffer.particles[newParticleIndex] = particle;
-
-			// and add index to the alive list (push):
-			uint aliveCount = atomicAdd(u_CounterBuffer.AliveCount, 1);
-			u_AliveBufferPreSimulate.Indices[aliveCount] = newParticleIndex;
-		}
-	}
-
 	if (particleIndex < u_CounterBuffer.RealEmitCount)
 	{
 		vec2 uv = vec2(u_Emitter.Time, float(particleIndex) / float(THREADCOUNT_EMIT));
@@ -166,7 +138,7 @@ void main()
 		particle.Speed = u_Emitter.InitialSpeed;
 		particle.Scale = u_Emitter.InitialScale;
 		particle.Color = u_Emitter.InitialColor;
-		particle.Velocity = (u_Emitter.Direction * u_Emitter.InitialSpeed) + vec3(rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f) * u_Emitter.DirectionrRandomness;
+		particle.Velocity = (u_Emitter.Direction * u_Emitter.InitialSpeed) + vec3(rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f, rand(seed, uv) - 0.5f) * u_Emitter.DirectionRandomness;
 
 		// new particle index retrieved from dead list (pop):
 		uint deadCount = uint(atomicAdd(u_CounterBuffer.DeadCount, -1));
