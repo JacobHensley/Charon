@@ -69,6 +69,11 @@ namespace Charon {
 		uint32_t GradientPointCount;
 		uint32_t Padding0;
 		GradientPoint ColorGradientPoints[10];
+        uint32_t VelocityCurvePointCount;
+        uint32_t Padding1;
+        uint32_t Padding2;
+        uint32_t Padding3;
+        glm::vec4 VelocityCurvePoints[12];
 
         float Time;
         float DeltaTime;

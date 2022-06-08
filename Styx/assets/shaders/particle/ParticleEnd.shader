@@ -88,6 +88,12 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	uint Padding0;
 	GradientPoint ColorGradientPoints[10];
 
+	uint VelocityCurvePointCount;
+	uint Padding1;
+	uint Padding2;
+	uint Padding3;
+	vec4 VelocityCurvePoints[12];
+
 	float Time;
 	float DeltaTime;
 } u_Emitter;

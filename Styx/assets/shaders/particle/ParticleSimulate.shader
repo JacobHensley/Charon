@@ -89,6 +89,12 @@ layout(std140, binding = 7) uniform ParticleEmitter
 	uint Padding0;
 	GradientPoint ColorGradientPoints[10];
 
+	uint VelocityCurvePointCount;
+	uint Padding1;
+	uint Padding2;
+	uint Padding3;
+	vec4 VelocityCurvePoints[12];
+
 	float Time;
 	float DeltaTime;
 } u_Emitter;
@@ -167,6 +173,55 @@ vec3 GetParticleColor(float lifePercentage, vec3 particleColor)
 	return vec3(r, g, b);
 }
 
+vec2 BezierCubicCalc(vec2 p1, vec2 p2, vec2 p3, vec2 p4, float t)
+{
+	float u = 1.0f - t;
+	float w1 = u * u * u;
+	float w2 = 3 * u * u * t;
+	float w3 = 3 * u * t * t;
+	float w4 = t * t * t;
+	return vec2(w1 * p1.x + w2 * p2.x + w3 * p3.x + w4 * p4.x, w1 * p1.y + w2 * p2.y + w3 * p3.y + w4 * p4.y);
+}
+
+int GetGraphIndex(uint count, float x)
+{
+	for (int i = 0; i < count; i++)
+	{
+		vec2 p0 = u_Emitter.VelocityCurvePoints[i].xy;
+		vec2 p1 = u_Emitter.VelocityCurvePoints[i+1].zw;
+		if (x >= p0.x && x <= p1.x)
+			return i;
+	}
+
+	return -1;
+}
+
+float GetValueFromCuve(uint count, float x)
+{
+	int graphIndex = GetGraphIndex(count, x);
+	if (graphIndex != -1)
+	{
+		vec2 p0 = u_Emitter.VelocityCurvePoints[graphIndex].xy;
+		vec2 p1 = u_Emitter.VelocityCurvePoints[graphIndex + 1].zw;
+
+		vec2 nextPoint = vec2(0.0f, 0.0f);
+		if (count > (graphIndex + 4))
+			nextPoint = u_Emitter.VelocityCurvePoints[graphIndex + 1].xy;
+
+		// NOTE: keep this?
+		float distance = min(abs(p1.x - nextPoint.x), abs(p1.x - p0.x));
+
+		vec2 t0 = p0 + u_Emitter.VelocityCurvePoints[graphIndex].zw * distance;
+		vec2 t1 = p1 + u_Emitter.VelocityCurvePoints[graphIndex + 1].xy * distance;
+
+		vec2 pointOnGraph = BezierCubicCalc(p0, t0, t1, p1, (x - p0.x) / (p1.x - p0.x));
+
+		return pointOnGraph.y;
+	}
+
+	return 0;
+}
+
 layout(local_size_x = THREADCOUNT_SIMULATION) in;
 void main()
 {
@@ -186,6 +241,11 @@ void main()
 			particle.CurrentLife -= u_Emitter.DeltaTime;
 			particle.Color = GetParticleColor(1.0f - particle.CurrentLife / particle.Lifetime, particle.Color);
 			
+			particle.Velocity.x = 5.0f;
+			particle.Velocity.y = 0.0f;
+			particle.Velocity.z = 0.0f;
+			particle.Velocity.y = GetValueFromCuve(u_Emitter.VelocityCurvePointCount, 1.0f - particle.CurrentLife / particle.Lifetime) * 10.0f;
+
 			// write back simulated particle:
 			u_ParticleBuffer.particles[particleIndex] = particle;
 

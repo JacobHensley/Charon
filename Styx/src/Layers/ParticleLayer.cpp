@@ -580,21 +580,27 @@ namespace Charon {
 
 					m_BezierCubicPoints.emplace_back(firstPoint.x, firstPoint.y);
 					m_BezierCubicPoints.emplace_back(firstTangent.x, firstTangent.y);
+					m_Emitter.VelocityCurvePoints[0] = glm::vec4(firstPoint.x, firstPoint.y, firstTangent.x, firstTangent.y);
 
+					int pointIndex = 1;
 					// if > 2 points
-					for (int pointIndex = 1; pointIndex < pointsCount - 1; pointIndex++)
+					for (; pointIndex < pointsCount - 1; pointIndex++)
 					{
 						ImVec2* points = ((ImVec2*)values) + pointIndex * 3;
 
 						ImVec2 tangLeft = points[0];
 						ImVec2 point = points[1];
 						ImVec2 tangRight = points[2];
-
+						
+						
 						m_BezierCubicPoints.emplace_back(tangLeft.x, tangLeft.y);
 						m_BezierCubicPoints.emplace_back(point.x, point.y);
 
 						m_BezierCubicPoints.emplace_back(point.x, point.y);
 						m_BezierCubicPoints.emplace_back(tangRight.x, tangRight.y);
+
+						m_Emitter.VelocityCurvePoints[pointIndex] = glm::vec4(tangLeft.x, tangLeft.y, point.x, point.y);
+						m_Emitter.VelocityCurvePoints[pointIndex] = glm::vec4(point.x, point.y, tangRight.x, tangRight.y);
 					}
 
 					// LAST point
@@ -603,6 +609,21 @@ namespace Charon {
 
 					m_BezierCubicPoints.emplace_back(lastTangent.x, lastTangent.y);
 					m_BezierCubicPoints.emplace_back(lastPoint.x, lastPoint.y);
+
+					m_Emitter.VelocityCurvePoints[pointIndex] = glm::vec4(lastTangent.x, lastTangent.y, lastPoint.x, lastPoint.y);
+
+					m_Emitter.VelocityCurvePointCount = m_BezierCubicPoints.size();
+
+				/*	for (int i = 0; i < m_BezierCubicPoints.size(); i++)
+					{
+						CR_LOG_DEBUG("{0}: X: {1}, Y: {2}", i, m_BezierCubicPoints[i].x, m_BezierCubicPoints[i].y);
+					}
+					CR_LOG_DEBUG("===========================");
+					for (int i = 0; i < m_BezierCubicPoints.size() / 2; i++)
+					{
+						CR_LOG_DEBUG("{0}: X: {1}, Y: {2}", i, m_Emitter.VelocityCurvePoints[i].x, m_Emitter.VelocityCurvePoints[i].y);
+						CR_LOG_DEBUG("{0}: X: {1}, Y: {2}", i, m_Emitter.VelocityCurvePoints[i].z, m_Emitter.VelocityCurvePoints[i].w);
+					} */
 				}
 			}
 
@@ -846,7 +867,7 @@ namespace Charon {
 			}
 		}
 
-	/*	if (ImGui::GetIO().MouseWheel != 0 && ImGui::IsItemHovered())
+		if (ImGui::GetIO().MouseWheel != 0 && ImGui::IsItemHovered())
 		{
 			float scale = powf(2, ImGui::GetIO().MouseWheel);
 			width *= scale;
@@ -873,7 +894,7 @@ namespace Charon {
 			window->StateStorage.SetBool((ImGuiID)StorageValues::IS_PANNING, true);
 			start_pan.x = from_x;
 			start_pan.y = from_y;
-		} */
+		}
 
 		int changed_idx = -1;
 		for (int point_idx = points_count - 2; point_idx >= 0; --point_idx)
