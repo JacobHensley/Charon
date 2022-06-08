@@ -13,6 +13,8 @@ namespace Charon {
 
 	using namespace ImGui;
 
+	static float s_GraphTime = 0.0f;
+
 	int CurveEditor(const char* label
 		, float* values
 		, int points_count
@@ -29,6 +31,21 @@ namespace Charon {
 
 	static const float NODE_SLOT_RADIUS = 4.0f;
 
+	static glm::vec2 BezierCubicCalc(const glm::vec2& p1, const glm::vec2& p2, const glm::vec2& p3, const glm::vec2& p4, float t)
+	{
+		float u = 1.0f - t;
+		float w1 = u * u * u;
+		float w2 = 3 * u * u * t;
+		float w3 = 3 * u * t * t;
+		float w4 = t * t * t;
+		return glm::vec2(w1 * p1.x + w2 * p2.x + w3 * p3.x + w4 * p4.x, w1 * p1.y + w2 * p2.y + w3 * p3.y + w4 * p4.y);
+	}
+
+	static glm::vec2 BezierCubicCalcIm(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, float t)
+	{
+		return BezierCubicCalc(*(glm::vec2*)&p1, *(glm::vec2*)&p2, *(glm::vec2*)&p3, *(glm::vec2*)&p4, t);
+	}
+
 	ParticleLayer::ParticleLayer()
 		: Layer("Particle")
 	{
@@ -43,6 +60,8 @@ namespace Charon {
 	{
 		m_ParticleSort = CreateRef<ParticleSort>();
 		m_ParticleSort->Init(m_MaxParticles);
+
+		m_DebugSphere = CreateRef<Mesh>("assets/models/Sphere.gltf");
 
 		// Emitter settings
 		m_Emitter.Position = glm::vec3(0.0f);
@@ -275,6 +294,10 @@ namespace Charon {
 		m_Emitter.Time = Application::GetApp().GetGlobalTime();
 		m_Emitter.DeltaTime = Application::GetApp().GetDeltaTime();
 
+		s_GraphTime += m_Emitter.DeltaTime;
+		if (s_GraphTime > 2.0f)
+			s_GraphTime = 0.0f;
+
 		// Set emission quantity based on particles per second and delta time
 		m_RequestedParticlesPerFrame = std::max(0.0f, m_RequestedParticlesPerFrame - std::floor(m_RequestedParticlesPerFrame));
 		m_RequestedParticlesPerFrame += m_RequestedParticlesPerSecond * m_Emitter.DeltaTime;
@@ -388,12 +411,52 @@ namespace Charon {
 		}
 	}
 
+	int ParticleLayer::GetGraphIndex(const std::vector<glm::vec2>& bezierCubicPoints, float x)
+	{
+		for (int i = 0; i < bezierCubicPoints.size(); i += 4)
+		{
+			const glm::vec2& p0 = bezierCubicPoints[i];
+			const glm::vec2& p1 = bezierCubicPoints[i + 3];
+			if (x >= p0.x && x <= p1.x)
+				return i;
+		}
+		return -1;
+	}
+
 	void ParticleLayer::OnRender()
 	{
 		auto renderer = Application::GetApp().GetRenderer();
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
 		VkCommandBuffer commandBuffer = renderer->GetActiveCommandBuffer();
 		
+		// Debug quad
+
+		float graphTime = s_GraphTime * 0.5f;
+
+		int graphIndex = GetGraphIndex(m_BezierCubicPoints, graphTime);
+		glm::vec3 spherePos(0.0f);
+		if (graphIndex != -1)
+		{
+			glm::vec2 p0 = m_BezierCubicPoints[graphIndex];
+			glm::vec2 p1 = m_BezierCubicPoints[graphIndex + 3];
+
+			glm::vec2 nextPoint(0.0f);
+			if (m_BezierCubicPoints.size() > (graphIndex + 4))
+				nextPoint = m_BezierCubicPoints[graphIndex + 4];
+			
+			// NOTE: keep this?
+			float distance = std::min(abs(p1.x - nextPoint.x), abs(p1.x - p0.x));
+
+			glm::vec2 t0 = p0 + m_BezierCubicPoints[graphIndex + 1] * distance;
+			glm::vec2 t1 = p1 + m_BezierCubicPoints[graphIndex + 2] * distance;
+
+			glm::vec2 pointOnGraph = BezierCubicCalc(p0, t0, t1, p1, (graphTime - p0.x) / (p1.x - p0.x));
+
+			float scale = 4.0f;
+			spherePos = glm::vec3(graphTime * scale, pointOnGraph.y * scale, 0.0f);
+		}
+		renderer->SubmitMesh(m_DebugSphere, glm::translate(glm::mat4(1.0f), spherePos));
+
 		// Update particle renderer write descriptors
 		{
 			VkDescriptorSetAllocateInfo particleDescriptorSetAllocateInfo{};
@@ -429,6 +492,7 @@ namespace Charon {
 				vkCmdDrawIndexedIndirect(commandBuffer, m_ParticleBuffers.IndirectDrawBuffer->GetBuffer(), indirectBufferOffset, 1, 0);
 			}
 
+			renderer->Render();
 			renderer->EndRenderPass();
 		}
 
@@ -491,12 +555,55 @@ namespace Charon {
 
 				if (first)
 				{
-					values[0] = ImVec2(0.0f, 0.0f); values[1] = ImVec2(0.0f, 0.0f); values[2] = ImVec2(50.0f, 0.0f);
-					values[3] = ImVec2(-50.0f, 0.0f); values[4] = ImVec2(1.0f, 1.0f); values[5] = ImVec2(0.0f, 0.0f);
+					values[0] = ImVec2(0.0f, 0.0f); values[1] = ImVec2(0.0f, 0.0f); values[2] = ImVec2(1.0f, 0.0f);
+					values[3] = ImVec2(-1.0f, 0.0f); values[4] = ImVec2(1.0f, 1.0f); values[5] = ImVec2(0.0f, 0.0f);
 					first = false;
 				}
 
 				CurveEditor("Size", (float*)values, count, ImVec2(400, 200), (ImU32)CurveEditorFlags::SHOW_GRID, &newCount);
+
+				// FIRST -> POINT = values[1], TANG = values[2]
+				// LAST -> POINT = values[4], TANG = values[3], values[5]
+
+				// FIRST -> POINT = values[1], TANG = values[2]
+				// MIDDLE -> POINT = values[4], TANG = values[3], values[5]
+				// LAST -> POINT = values[7], TANG = values[6]
+
+				m_BezierCubicPoints.clear();
+
+				int pointsCount = newCount;
+				if (pointsCount >= 2)
+				{
+					// FIRST point
+					ImVec2 firstPoint = values[1]; // values[1]
+					ImVec2 firstTangent = values[2]; // values[2]
+
+					m_BezierCubicPoints.emplace_back(firstPoint.x, firstPoint.y);
+					m_BezierCubicPoints.emplace_back(firstTangent.x, firstTangent.y);
+
+					// if > 2 points
+					for (int pointIndex = 1; pointIndex < pointsCount - 1; pointIndex++)
+					{
+						ImVec2* points = ((ImVec2*)values) + pointIndex * 3;
+
+						ImVec2 tangLeft = points[0];
+						ImVec2 point = points[1];
+						ImVec2 tangRight = points[2];
+
+						m_BezierCubicPoints.emplace_back(tangLeft.x, tangLeft.y);
+						m_BezierCubicPoints.emplace_back(point.x, point.y);
+
+						m_BezierCubicPoints.emplace_back(point.x, point.y);
+						m_BezierCubicPoints.emplace_back(tangRight.x, tangRight.y);
+					}
+
+					// LAST point
+					ImVec2 lastPoint = values[4 + (pointsCount - 2) * 3];
+					ImVec2 lastTangent = values[3 + (pointsCount - 2) * 3];
+
+					m_BezierCubicPoints.emplace_back(lastTangent.x, lastTangent.y);
+					m_BezierCubicPoints.emplace_back(lastPoint.x, lastPoint.y);
+				}
 			}
 
 			if (ImGui::CollapsingHeader("Debug"))
@@ -589,6 +696,8 @@ namespace Charon {
 		}
 
 	}
+
+	
 
 	int CurveEditor(const char* label
 		, float* values
@@ -853,9 +962,11 @@ namespace Charon {
 					return ImVec2(v.x * len, v.y * len);
 				};
 
+				const float PIXEL_SPACE = 50.0f;
+
 				ImVec2 cursor_pos = GetCursorScreenPos();
 				ImVec2 pos = transform(p);
-				ImVec2 tang = pos + ImVec2(t.x, -t.y);
+				ImVec2 tang = pos + ImVec2(t.x, -t.y) * PIXEL_SPACE;
 
 				SetCursorScreenPos(tang - ImVec2(SIZE, SIZE));
 				PushID(-idx);
@@ -873,7 +984,7 @@ namespace Charon {
 					tang = GetIO().MousePos - pos;
 					tang.y *= -1;
 
-					t = tang;
+					t = tang / PIXEL_SPACE;
 					changed = true;
 				}
 				PopID();
@@ -882,7 +993,7 @@ namespace Charon {
 				return changed;
 			};
 
-			const float LENGTH = 50.0f;
+			const float LENGTH = 1.0f;
 
 			float distance = std::min(abs(p.x - p_next.x), abs(p.x - p_prev.x));
 
@@ -890,10 +1001,10 @@ namespace Charon {
 			if ((flags & (int)CurveEditorFlags::NO_TANGENTS) == 0)
 			{
 				window->DrawList->AddBezierCurve(
-					transform(p_prev),
-					transform(p_prev + tangent_last * distance / LENGTH),
-					transform(p + tangent * distance / LENGTH),
-					transform(p),
+					transform(p_prev), // points[0]
+					transform(p_prev + tangent_last * distance / LENGTH), // points[0] + points[1]
+					transform(p + tangent * distance / LENGTH), // points[3] + points[2]
+					transform(p), // points[3]
 					GetColorU32(ImGuiCol_PlotLines),
 					1.0f,
 					20);
@@ -942,6 +1053,18 @@ namespace Charon {
 					changed_idx = point_idx;
 				}
 			}
+
+			// Debug point
+			float t = s_GraphTime;
+			glm::vec2 point = BezierCubicCalc(
+				*(glm::vec2*)&transform(p_prev), // points[0]
+				*(glm::vec2*)&transform(p_prev + tangent_last * distance / LENGTH), // points[0] + points[1]
+				*(glm::vec2*)&transform(p + tangent * distance / LENGTH), // points[3] + points[2]
+				*(glm::vec2*)&transform(p),
+				t);
+
+			window->DrawList->AddCircleFilled(ImVec2(point.x, point.y), 5.0f, 0xffff00ff);
+
 			PopID();
 		}
 
@@ -957,9 +1080,11 @@ namespace Charon {
 
 			if ((flags & (int)CurveEditorFlags::NO_TANGENTS) == 0)
 			{
-				points[points_count * 3 + 0] = ImVec2(-20.0f, 0);
+				const float DEFAULT_TANGENT = 0.4f;
+
+				points[points_count * 3 + 0] = ImVec2(-DEFAULT_TANGENT, 0);
 				points[points_count * 3 + 1] = new_p;
-				points[points_count * 3 + 2] = ImVec2(20.0f, 0);;
+				points[points_count * 3 + 2] = ImVec2(DEFAULT_TANGENT, 0);
 				++* new_count;
 
 				auto compare = [](const void* a, const void* b) -> int

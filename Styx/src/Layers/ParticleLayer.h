@@ -96,7 +96,8 @@ namespace Charon {
         void OnUpdate();
         void OnRender();
         void OnImGUIRender();
-
+    private:
+		int GetGraphIndex(const std::vector<glm::vec2>& bezierCubicPoints, float x);
     private:
         // Display
         Ref<Camera> m_Camera;
@@ -160,6 +161,9 @@ namespace Charon {
 			Ref<UniformBuffer> ParticleDrawDetails;
             Ref<IndexBuffer> IndexBuffer;
         } m_ParticleBuffers;
+
+        Ref<Mesh> m_DebugSphere;
+		std::vector<glm::vec2> m_BezierCubicPoints;
 
         // Debug settings
         bool m_EnableSorting = true;
