@@ -62,6 +62,7 @@ namespace Charon {
 		m_ParticleSort->Init(m_MaxParticles);
 
 		m_DebugSphere = CreateRef<Mesh>("assets/models/Sphere.gltf");
+		m_Plane20m = CreateRef<Mesh>("assets/models/Plane20m.gltf");
 
 		// Emitter settings
 		m_Emitter.Position = glm::vec3(0.0f);
@@ -455,7 +456,8 @@ namespace Charon {
 			float scale = 4.0f;
 			spherePos = glm::vec3(graphTime * scale, pointOnGraph.y * scale, 0.0f);
 		}
-		renderer->SubmitMesh(m_DebugSphere, glm::translate(glm::mat4(1.0f), spherePos));
+		//renderer->SubmitMesh(m_DebugSphere, glm::translate(glm::mat4(1.0f), spherePos));
+		renderer->SubmitMesh(m_Plane20m, glm::mat4(1.0f));
 
 		// Update particle renderer write descriptors
 		{
@@ -476,8 +478,15 @@ namespace Charon {
 
 		// Render particles
 		{
-			renderer->BeginRenderPass(renderer->GetFramebuffer());
+			// Geo
+			renderer->BeginRenderPass(renderer->GetFramebuffer(), true);
+			renderer->Render();
+			renderer->EndRenderPass();
 
+			// depth texture!
+
+			// Particles (no clear)
+			renderer->BeginRenderPass(renderer->GetFramebuffer());
 			{
 				vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ParticleRendererPipeline->GetPipeline());
 
@@ -485,7 +494,7 @@ namespace Charon {
 				VkBuffer vertexBuffer = m_ParticleBuffers.VertexBuffer->GetBuffer();
 				vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &offset);
 
-				vkCmdBindIndexBuffer(commandBuffer, m_ParticleBuffers.IndexBuffer->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);;
+				vkCmdBindIndexBuffer(commandBuffer, m_ParticleBuffers.IndexBuffer->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ParticleRendererPipeline->GetPipelineLayout(), 0, 1, &m_ParticleRendererDescriptorSet, 0, 0);
 
 				VkDeviceSize indirectBufferOffset = { offsetof(IndirectDrawBuffer, DrawParticles) };
@@ -493,13 +502,6 @@ namespace Charon {
 			}
 
 			renderer->Render();
-			renderer->EndRenderPass();
-		}
-
-		// Render UI
-		{
-			renderer->BeginRenderPass();
-			renderer->RenderUI();
 			renderer->EndRenderPass();
 		}
 
@@ -513,6 +515,15 @@ namespace Charon {
 		// Particle Settings Panel
 		{
 			ImGui::Begin("Particle settings");
+
+			{
+				auto renderer = Application::GetApp().GetRenderer();
+				auto depthImage = renderer->GetFramebuffer()->GetDepthImage();
+
+				const auto& descriptorInfo = depthImage->GetDescriptorImageInfo();
+				ImTextureID textureID = ImGui_ImplVulkan_AddTexture(descriptorInfo.sampler, descriptorInfo.imageView, descriptorInfo.imageLayout);
+				ImGui::Image((void*)textureID, { 512, 512 }, ImVec2(0, 1), ImVec2(1, 0));
+			}
 
 			ScopedMap<CounterBuffer, StorageBuffer> counterBuffer(m_ParticleBuffers.CounterBuffer);
 			ImGui::Text("Alive Particles: %u", counterBuffer->AliveCount_AfterSimulation);

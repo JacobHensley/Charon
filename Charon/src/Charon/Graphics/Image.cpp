@@ -49,7 +49,8 @@ namespace Charon {
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
 		VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-		VkImageAspectFlags aspectFlag = IsDepthFormat(m_Specification.Format) ? (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT) : VK_IMAGE_ASPECT_COLOR_BIT;
+		bool isDepth = IsDepthFormat(m_Specification.Format);
+		VkImageAspectFlags aspectFlag = isDepth ? (VK_IMAGE_ASPECT_DEPTH_BIT) : VK_IMAGE_ASPECT_COLOR_BIT;
 
 		if (m_Specification.Data)
 		{
@@ -137,7 +138,7 @@ namespace Charon {
 		VK_CHECK_RESULT(vkCreateSampler(device->GetLogicalDevice(), &samplerCreateInfo, nullptr, &m_ImageInfo.Sampler));
 
 		// Create descriptor image info
-		m_DescriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		m_DescriptorImageInfo.imageLayout = isDepth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		m_DescriptorImageInfo.imageView = m_ImageInfo.ImageView;
 		m_DescriptorImageInfo.sampler = m_ImageInfo.Sampler;
 	}

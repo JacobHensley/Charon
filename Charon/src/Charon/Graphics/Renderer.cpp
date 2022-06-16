@@ -35,6 +35,7 @@ namespace Charon {
 		framebufferSpec.AttachmentFormats = { VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_D24_UNORM_S8_UINT };
 		framebufferSpec.Width = 1280;
 		framebufferSpec.Height = 720;
+		framebufferSpec.ClearOnLoad = false;
 		m_Framebuffer = CreateRef<Framebuffer>(framebufferSpec);
 
 		PipelineSpecification pipelineSpec;
@@ -105,7 +106,7 @@ namespace Charon {
 		m_DrawList.clear();
 	}
 
-	void Renderer::BeginRenderPass(Ref<Framebuffer> framebuffer)
+	void Renderer::BeginRenderPass(Ref<Framebuffer> framebuffer, bool explicitClear)
 	{
 		VkRenderPass renderPass;
 		VkFramebuffer vulkanFramebuffer;
@@ -154,6 +155,44 @@ namespace Charon {
 
 		vkCmdSetViewport(m_ActiveCommandBuffer, 0, 1, &viewport);
 		vkCmdBeginRenderPass(m_ActiveCommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		if (explicitClear)
+		{
+			const uint32_t colorAttachmentCount = (uint32_t)framebuffer->GetColorAttachmentCount();
+			const uint32_t totalAttachmentCount = colorAttachmentCount + (framebuffer->HasDepthAttachment() ? 1 : 0);
+
+			VkClearValue clearValues;
+			glm::vec4 clearColor = framebuffer->GetSpecification().ClearColor;
+			clearValues.color = { clearColor.r, clearColor.g, clearColor.b, clearColor.a };
+
+			std::vector<VkClearAttachment> attachments(totalAttachmentCount);
+			std::vector<VkClearRect> clearRects(totalAttachmentCount);
+			for (uint32_t i = 0; i < colorAttachmentCount; i++)
+			{
+				attachments[i].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				attachments[i].colorAttachment = i;
+				attachments[i].clearValue = clearValues;
+
+				clearRects[i].rect.offset = { (int32_t)0, (int32_t)0 };
+				clearRects[i].rect.extent = { extent.width, extent.height };
+				clearRects[i].baseArrayLayer = 0;
+				clearRects[i].layerCount = 1;
+			}
+
+			if (framebuffer->HasDepthAttachment())
+			{
+				clearValues.depthStencil = { 1.0f, 0 };
+
+				attachments[colorAttachmentCount].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+				attachments[colorAttachmentCount].clearValue = clearValues;
+				clearRects[colorAttachmentCount].rect.offset = { (int32_t)0, (int32_t)0 };
+				clearRects[colorAttachmentCount].rect.extent = { extent.width,  extent.height };
+				clearRects[colorAttachmentCount].baseArrayLayer = 0;
+				clearRects[colorAttachmentCount].layerCount = 1;
+			}
+
+			vkCmdClearAttachments(m_ActiveCommandBuffer, totalAttachmentCount, attachments.data(), totalAttachmentCount, clearRects.data());
+		}
 	}
 
 	void Renderer::EndRenderPass()

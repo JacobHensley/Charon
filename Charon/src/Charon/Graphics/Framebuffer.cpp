@@ -23,7 +23,8 @@ namespace Charon {
 	{
 		for (int i = 0; i < m_Specification.AttachmentFormats.size(); i++)
 		{
-			FramebufferAttachment& attachment = m_Attachments.emplace_back();
+			bool isDepth = Image::IsDepthFormat(m_Specification.AttachmentFormats[i]);
+			FramebufferAttachment& attachment = isDepth ? m_DepthAttachment : m_Attachments.emplace_back();
 
 			ImageSpecification imageSpecification = {};
 			imageSpecification.Data = nullptr;
@@ -31,13 +32,13 @@ namespace Charon {
 			imageSpecification.Height = m_Specification.Height;
 			imageSpecification.Format = m_Specification.AttachmentFormats[i];
 			imageSpecification.UseStagingBuffer = false;
-			imageSpecification.Usage = Image::IsDepthFormat(m_Specification.AttachmentFormats[i]) ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+			imageSpecification.Usage = isDepth ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 			attachment.Image = CreateRef<Image>(imageSpecification);
 
 			// Fill attachment description
 			attachment.Description = {};
 			attachment.Description.samples = VK_SAMPLE_COUNT_1_BIT;
-			attachment.Description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			attachment.Description.loadOp = m_Specification.ClearOnLoad ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 			attachment.Description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			attachment.Description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 			attachment.Description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -45,13 +46,14 @@ namespace Charon {
 			attachment.Description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
 			// Final layout
-			if (Image::IsDepthFormat(m_Specification.AttachmentFormats[i]) || Image::IsStencilFormat(m_Specification.AttachmentFormats[i]))
+			if (isDepth || Image::IsStencilFormat(m_Specification.AttachmentFormats[i]))
 			{
 				attachment.Description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 			}
 			else
 			{
 				attachment.Description.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				m_ColorAttachmentCount++;
 			}
 		}
 	}
@@ -79,6 +81,9 @@ namespace Charon {
 			attachmentDescriptions.push_back(attachment.Description);
 		};
 
+		if (m_DepthAttachment)
+			attachmentDescriptions.push_back(m_DepthAttachment.Description);
+
 		// collect attachment references
 		std::vector<VkAttachmentReference> colorAttachmentReferences;
 		VkAttachmentReference depthAttachmentReference = {};
@@ -89,20 +94,15 @@ namespace Charon {
 		for (uint32_t i = 0; i < m_Attachments.size(); i++)
 		{
 			FramebufferAttachment attachment = m_Attachments[i];
+			colorAttachmentReferences.push_back({ i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
+			hasColor = true;
+		}
 
-			if (Image::IsDepthFormat(attachment.Description.format) || Image::IsStencilFormat(attachment.Description.format))
-			{
-				CR_ASSERT(!hasDepth, "Only one depth attachment is allowed");
-
-				depthAttachmentReference.attachment = i;
-				depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-				hasDepth = true;
-			}
-			else
-			{
-				colorAttachmentReferences.push_back({ i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-				hasColor = true;
-			}
+		if (m_DepthAttachment)
+		{
+			depthAttachmentReference.attachment = (uint32_t)m_Attachments.size();
+			depthAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			hasDepth = true;
 		}
 
 		// Create suppass using attachment references
@@ -156,6 +156,9 @@ namespace Charon {
 		{
 			attachmentViews.push_back(attachment.Image->GetDescriptorImageInfo().imageView);
 		}
+
+		if (m_DepthAttachment)
+			attachmentViews.push_back(m_DepthAttachment.Image->GetDescriptorImageInfo().imageView);
 
 		// Find max number of layers across attachments
 		uint32_t maxLayers = 0;

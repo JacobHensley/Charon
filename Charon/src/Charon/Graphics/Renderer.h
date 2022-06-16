@@ -38,7 +38,7 @@ namespace Charon {
 		void BeginScene(Ref<Camera> camera);
 		void EndScene();
 
-		void BeginRenderPass(Ref<Framebuffer> framebuffer = nullptr);
+		void BeginRenderPass(Ref<Framebuffer> framebuffer = nullptr, bool explicitClear = false);
 		void EndRenderPass();
 
 		void SubmitMesh(Ref<Mesh> mesh, glm::mat4& transform);

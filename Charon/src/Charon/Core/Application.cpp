@@ -82,6 +82,14 @@ namespace Charon {
 		}
 
 		m_ImGUILayer->EndFrame();
+
+		// Render UI
+		{
+			auto renderer = Application::GetApp().GetRenderer();
+			renderer->BeginRenderPass();
+			renderer->RenderUI();
+			renderer->EndRenderPass();
+		}
 	}
 
 	void Application::Run()
@@ -99,8 +107,8 @@ namespace Charon {
 			m_SwapChain->BeginFrame();
 			m_Renderer->BeginFrame();
 
-			OnImGUIRender();
 			OnRender();
+			OnImGUIRender();
 
 			m_Renderer->EndFrame();
 			m_SwapChain->Present();

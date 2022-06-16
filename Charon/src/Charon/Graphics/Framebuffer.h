@@ -12,12 +12,15 @@ namespace Charon {
 		float Scale = 1.0f;
 		std::vector<VkFormat> AttachmentFormats;
 		glm::vec4 ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+		bool ClearOnLoad = true;
 	};
 
 	struct FramebufferAttachment
 	{
 		Ref<Image> Image;
 		VkAttachmentDescription Description;
+
+		operator bool() const { return (bool)Image; }
 	};
 
 	class Framebuffer
@@ -39,7 +42,10 @@ namespace Charon {
 		inline const FramebufferSpecification& GetSpecification() const { return m_Specification; }
 
 		Ref<Image> GetImage(uint32_t index) { return m_Attachments[index].Image; }
+		Ref<Image> GetDepthImage() const { return m_DepthAttachment.Image; }
 
+		uint32_t GetColorAttachmentCount() const { return m_ColorAttachmentCount; }
+		bool HasDepthAttachment() const { return m_DepthAttachment; }
 	private:
 		void Init();
 
@@ -47,11 +53,13 @@ namespace Charon {
 		FramebufferSpecification m_Specification;
 		uint32_t m_Width = 0;
 		uint32_t m_Height = 0;
+		uint32_t m_ColorAttachmentCount = 0;
 
 		VkFramebuffer m_Framebuffer = nullptr;
 		VkRenderPass m_RenderPass = nullptr;
 
 		std::vector<FramebufferAttachment> m_Attachments;
+		FramebufferAttachment m_DepthAttachment;
 	};
 
 }

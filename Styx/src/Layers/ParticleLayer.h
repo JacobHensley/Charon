@@ -168,6 +168,7 @@ namespace Charon {
         } m_ParticleBuffers;
 
         Ref<Mesh> m_DebugSphere;
+        Ref<Mesh> m_Plane20m;
 		std::vector<glm::vec2> m_BezierCubicPoints;
 
         // Debug settings
