@@ -112,11 +112,32 @@ layout(std430, binding = 9) buffer CameraDistanceBuffer
 	uint DistanceToCamera[];
 } u_CameraDistanceBuffer;
 
+layout(binding = 10) uniform sampler2D u_DepthTexture;
+
 float rand(inout float seed, in vec2 uv)
 {
 	float result = fract(sin(seed * dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
 	seed += 1;
 	return result;
+}
+
+float LinearizeDepth(float z, float near, float far)
+{
+	float lin = 2 * far * near / (near + far - z * (near - far));
+	return lin;
+}
+
+// Reconstructs world-space position from depth buffer
+//	uv		: screen space coordinate in [0, 1] range
+//	z		: depth value at current pixel
+//	InvVP	: Inverse of the View-Projection matrix that was used to generate the depth value
+vec3 reconstruct_position(in vec2 uv, in float z, in mat4 inverse_view_projection)
+{
+	float x = uv.x * 2 - 1;
+	float y = (1 - uv.y) * 2 - 1;
+	vec4 position_s = vec4(x, y, z, 1);
+	vec4 position_v = inverse_view_projection * position_s;
+	return position_v.xyz / position_v.w;
 }
 
 const uint THREADCOUNT_EMIT = 256;
@@ -264,6 +285,47 @@ void main()
 			float particleDist = length(particle.Position - cameraPosition);
 			uint distSQ = -uint(particleDist * 1000000.0f);
 			u_CameraDistanceBuffer.DistanceToCamera[newAliveIndex] = distSQ;
+
+			// Depth buffer collisions
+			{
+				vec4 pos2D = u_CameraBuffer.ViewProjection * vec4(particle.Position.xyz, 1);
+				pos2D.xyz /= pos2D.w;
+
+				if (pos2D.x > -1 && pos2D.x < 1 && pos2D.y > -1 && pos2D.y < 1)
+				{
+					vec2 uv = pos2D.xy * vec2(0.5f, -0.5f) + 0.5f;
+					uvec2 pixel = uvec2(uint(uv.x), uint(uv.y));
+
+					float depth0 = texture(u_DepthTexture, pixel).r;
+					float surfaceLinearDepth = LinearizeDepth(depth0, 0.1f, 100.0f);
+					float surfaceThickness = 1.5f;
+
+					float lifeLerp = 1 - particle.CurrentLife / particle.Lifetime;
+					float particleSize = particle.Scale.x;
+
+					// check if particle is colliding with the depth buffer, but not completely behind it:
+					if ((pos2D.w + particleSize > surfaceLinearDepth) && (pos2D.w - particleSize < surfaceLinearDepth + surfaceThickness))
+					{
+						particle.Color = vec3(1.0f, 0.0f, 0.0f);
+
+						// Calculate surface normal and bounce off the particle:
+						float depth1 = LinearizeDepth(texture(u_DepthTexture, pixel + uvec2(1, 0)).r, 0.1f, 100.0f);
+						float depth2 = LinearizeDepth(texture(u_DepthTexture, pixel + uvec2(0, -1)).r, 0.1f, 100.0f);
+
+						vec3 p0 = reconstruct_position(uv, depth0, u_CameraBuffer.InverseView);
+						vec3 p1 = reconstruct_position(uv + vec2(1, 0), depth1, u_CameraBuffer.InverseView);
+						vec3 p2 = reconstruct_position(uv + vec2(0, -1), depth2, u_CameraBuffer.InverseView);
+
+						vec3 surfaceNormal = normalize(cross(p2 - p0, p1 - p0));
+
+						if (dot(particle.Velocity, surfaceNormal) < 0)
+						{
+							particle.Velocity = reflect(particle.Velocity, surfaceNormal) * 10.0f;
+						}
+					}
+				}
+			}
+
 		}
 		else
 		{

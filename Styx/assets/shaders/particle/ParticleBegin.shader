@@ -111,6 +111,8 @@ layout(std430, binding = 9) buffer CameraDistanceBuffer
 	uint m_DistanceToCamera[];
 } u_CameraDistanceBuffer;
 
+layout(binding = 10) uniform sampler2D u_DepthTexture;
+
 float rand(inout float seed, in vec2 uv)
 {
 	float result = fract(sin(seed * dot(uv, vec2(12.9898, 78.233))) * 43758.5453);

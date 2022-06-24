@@ -266,6 +266,13 @@ namespace Charon {
 			cameraDistanceBufferWD.dstBinding = 9;
 			cameraDistanceBufferWD.pBufferInfo = &m_ParticleBuffers.CameraDistanceBuffer->getDescriptorBufferInfo();
 			cameraDistanceBufferWD.descriptorCount = 1;
+
+			VkWriteDescriptorSet& depthTextureWD = m_ParticleSimulationWriteDescriptors.emplace_back();
+			depthTextureWD.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			depthTextureWD.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			depthTextureWD.dstBinding = 10;
+			depthTextureWD.pImageInfo = &renderer->GetFramebuffer()->GetDepthImage()->GetDescriptorImageInfo();
+			depthTextureWD.descriptorCount = 1;
 		}
 	}
 
