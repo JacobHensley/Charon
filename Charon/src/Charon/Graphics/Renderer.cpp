@@ -36,6 +36,7 @@ namespace Charon {
 		framebufferSpec.Width = 1280;
 		framebufferSpec.Height = 720;
 		framebufferSpec.ClearOnLoad = false;
+		framebufferSpec.DebugName = "Geometry";
 		m_Framebuffer = CreateRef<Framebuffer>(framebufferSpec);
 
 		PipelineSpecification pipelineSpec;

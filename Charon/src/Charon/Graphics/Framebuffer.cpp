@@ -2,6 +2,8 @@
 #include "Framebuffer.h"
 #include "Charon/Core/Application.h"
 
+#include "Charon/Core/Log.h"
+
 namespace Charon {
 
 	Framebuffer::Framebuffer(const FramebufferSpecification& specification)
@@ -33,6 +35,7 @@ namespace Charon {
 			imageSpecification.Format = m_Specification.AttachmentFormats[i];
 			imageSpecification.UseStagingBuffer = false;
 			imageSpecification.Usage = isDepth ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+			imageSpecification.DebugName = fmt::format("{}-{}({})", m_Specification.DebugName, isDepth ? "Depth" : "Color", i);
 			attachment.Image = CreateRef<Image>(imageSpecification);
 
 			// Fill attachment description

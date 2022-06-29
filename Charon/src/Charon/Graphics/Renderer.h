@@ -49,6 +49,7 @@ namespace Charon {
 
 		Ref<VulkanPipeline> GetPipeline() { return m_Pipeline; }
 		std::vector<VkDescriptorSet> GetDescriptorSets() { return m_DescriptorSets; }
+		void SetActiveCommandBuffer(VkCommandBuffer commandBuffer) { m_ActiveCommandBuffer = commandBuffer; }
 		VkCommandBuffer GetActiveCommandBuffer() { return m_ActiveCommandBuffer; }
 
 		Ref<Framebuffer> GetFramebuffer() { return m_Framebuffer; }

@@ -77,4 +77,5 @@ void main()
 {
     outColor.rgb = v_Color;
     outColor.a = v_Alpha;
+    outColor.a = 1.0;
 }

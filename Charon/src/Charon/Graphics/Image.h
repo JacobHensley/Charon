@@ -22,6 +22,8 @@ namespace Charon {
 		VkImageUsageFlags Usage;
 		VkSampleCountFlagBits SampleCount = VK_SAMPLE_COUNT_1_BIT;
 		bool UseStagingBuffer = true;
+
+		std::string DebugName;
 	};
 
 	class Image

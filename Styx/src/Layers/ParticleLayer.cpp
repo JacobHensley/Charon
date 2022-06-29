@@ -66,7 +66,7 @@ namespace Charon {
 
 		// Emitter settings
 		m_Emitter.Position = glm::vec3(0.0f);
-		m_Emitter.Direction = normalize(glm::vec3(0.0f, 1.0f, 0.0f));
+		m_Emitter.Direction = normalize(glm::vec3(1.0f, -0.5f, 0.0f));
 		m_Emitter.DirectionRandomness = 1.0f;
 		m_Emitter.VelocityRandomness = 1.0f;
 		m_Emitter.Gravity = 0.005f;
@@ -82,6 +82,10 @@ namespace Charon {
 		
 		m_RequestedParticlesPerSecond = 0;
 		m_RequestedParticlesPerFrame = 0;
+		
+		m_RequestedParticlesPerSecond = 5;
+		m_Emitter.Position = glm::vec3(0.0f, 5.0f, 0.0f);
+		m_Emitter.Gravity = 5.0f;
 
 		// Shaders
 		m_ParticleShaders.Begin = CreateRef<Shader>("assets/shaders/particle/ParticleBegin.shader");
@@ -282,6 +286,17 @@ namespace Charon {
 	{
 		auto renderer = Application::GetApp().GetRenderer();
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
+		static bool first = true;
+		if (first)
+		{
+			VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+			renderer->SetActiveCommandBuffer(commandBuffer);
+			renderer->BeginRenderPass(renderer->GetFramebuffer(), true);
+			renderer->EndRenderPass();
+			device->FlushCommandBuffer(commandBuffer, true);
+			first = false;
+		}
+
 
 		m_Camera->Update();
 

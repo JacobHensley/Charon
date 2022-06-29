@@ -123,7 +123,7 @@ float rand(inout float seed, in vec2 uv)
 
 float LinearizeDepth(float z, float near, float far)
 {
-	float lin = 2 * far * near / (near + far - z * (near - far));
+	float lin = 2.0 * far * near / (near + far - z * (near - far));
 	return lin;
 }
 
@@ -133,9 +133,9 @@ float LinearizeDepth(float z, float near, float far)
 //	InvVP	: Inverse of the View-Projection matrix that was used to generate the depth value
 vec3 reconstruct_position(in vec2 uv, in float z, in mat4 inverse_view_projection)
 {
-	float x = uv.x * 2 - 1;
-	float y = (1 - uv.y) * 2 - 1;
-	vec4 position_s = vec4(x, y, z, 1);
+	float x = uv.x * 2.0 - 1.0;
+	float y = (1.0 - uv.y) * 2.0 - 1.0;
+	vec4 position_s = vec4(x, y, z, 1.0);
 	vec4 position_v = inverse_view_projection * position_s;
 	return position_v.xyz / position_v.w;
 }
@@ -260,15 +260,12 @@ void main()
 			particle.Position += particle.Velocity * u_Emitter.DeltaTime;
 			particle.Velocity.y -= u_Emitter.Gravity * u_Emitter.DeltaTime;
 			particle.CurrentLife -= u_Emitter.DeltaTime;
-			particle.Color = GetParticleColor(1.0f - particle.CurrentLife / particle.Lifetime, particle.Color);
+			//particle.Color = GetParticleColor(1.0f - particle.CurrentLife / particle.Lifetime, particle.Color);
 			
-			particle.Velocity.x = 5.0f;
-			particle.Velocity.y = 0.0f;
-			particle.Velocity.z = 0.0f;
-			particle.Velocity.y = GetValueFromCuve(u_Emitter.VelocityCurvePointCount, 1.0f - particle.CurrentLife / particle.Lifetime) * 10.0f;
-
-			// write back simulated particle:
-			u_ParticleBuffer.particles[particleIndex] = particle;
+			// particle.Velocity.x = 5.0f;
+			// particle.Velocity.y = 0.0f;
+			// particle.Velocity.z = 0.0f;
+			// particle.Velocity.y = GetValueFromCuve(u_Emitter.VelocityCurvePointCount, 1.0f - particle.CurrentLife / particle.Lifetime) * 10.0f;
 
 			// add to new alive list:
 			uint newAliveIndex = atomicAdd(u_CounterBuffer.AliveCount_AfterSimulation, 1);
@@ -290,31 +287,34 @@ void main()
 			{
 				vec4 pos2D = u_CameraBuffer.ViewProjection * vec4(particle.Position.xyz, 1);
 				pos2D.xyz /= pos2D.w;
-
 				if (pos2D.x > -1 && pos2D.x < 1 && pos2D.y > -1 && pos2D.y < 1)
 				{
 					vec2 uv = pos2D.xy * vec2(0.5f, -0.5f) + 0.5f;
-					uvec2 pixel = uvec2(uint(uv.x), uint(uv.y));
+					vec2 pixel = uv;
+
+					vec2 depthTextureSize = vec2(textureSize(u_DepthTexture, 0));
 
 					float depth0 = texture(u_DepthTexture, pixel).r;
+
 					float surfaceLinearDepth = LinearizeDepth(depth0, 0.1f, 100.0f);
-					float surfaceThickness = 1.5f;
+					float surfaceThickness = 0.1f;
 
 					float lifeLerp = 1 - particle.CurrentLife / particle.Lifetime;
 					float particleSize = particle.Scale.x;
 
 					// check if particle is colliding with the depth buffer, but not completely behind it:
-					if ((pos2D.w + particleSize > surfaceLinearDepth) && (pos2D.w - particleSize < surfaceLinearDepth + surfaceThickness))
+					//if ((pos2D.w + particleSize > surfaceLinearDepth) && (pos2D.w - particleSize < surfaceLinearDepth + surfaceThickness))
+					if ((pos2D.w - particleSize < surfaceLinearDepth - surfaceThickness))
 					{
-						particle.Color = vec3(1.0f, 0.0f, 0.0f);
+						particle.Color = vec3(1.0f, 0.0f, 1.0f);
 
 						// Calculate surface normal and bounce off the particle:
-						float depth1 = LinearizeDepth(texture(u_DepthTexture, pixel + uvec2(1, 0)).r, 0.1f, 100.0f);
-						float depth2 = LinearizeDepth(texture(u_DepthTexture, pixel + uvec2(0, -1)).r, 0.1f, 100.0f);
+						float depth1 = LinearizeDepth(textureLod(u_DepthTexture, pixel + vec2(1.0 / depthTextureSize.x, 0), 0).r, 0.1f, 100.0f);
+						float depth2 = LinearizeDepth(textureLod(u_DepthTexture, pixel + vec2(0, -1.0 / depthTextureSize.y), 0).r, 0.1f, 100.0f);
 
-						vec3 p0 = reconstruct_position(uv, depth0, u_CameraBuffer.InverseView);
-						vec3 p1 = reconstruct_position(uv + vec2(1, 0), depth1, u_CameraBuffer.InverseView);
-						vec3 p2 = reconstruct_position(uv + vec2(0, -1), depth2, u_CameraBuffer.InverseView);
+						vec3 p0 = reconstruct_position(uv, depth0, u_CameraBuffer.InverseViewProjection);
+						vec3 p1 = reconstruct_position(uv + vec2(1, 0), depth1, u_CameraBuffer.InverseViewProjection);
+						vec3 p2 = reconstruct_position(uv + vec2(0, -1), depth2, u_CameraBuffer.InverseViewProjection);
 
 						vec3 surfaceNormal = normalize(cross(p2 - p0, p1 - p0));
 
@@ -338,6 +338,9 @@ void main()
 			u_VertexBuffer.vertices[(v0 + 2)].Position = vec3(0);
 			u_VertexBuffer.vertices[(v0 + 3)].Position = vec3(0);
 		}
+
+		// write back simulated particle:
+		u_ParticleBuffer.particles[particleIndex] = particle;
 	}
 
 }

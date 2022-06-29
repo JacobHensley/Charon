@@ -4,6 +4,23 @@
 
 namespace Charon {
 
+	namespace Utils {
+		
+		static void SetObjectName(VkObjectType type, const void* handle, std::string_view debugName)
+		{
+			VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
+
+			VkDebugUtilsObjectNameInfoEXT objectNameInfo{};
+			objectNameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+			objectNameInfo.objectHandle = (uint64_t)handle;
+			objectNameInfo.pObjectName = debugName.data();
+			objectNameInfo.objectType = type;
+
+			vkSetDebugUtilsObjectNameEXT(device, &objectNameInfo);
+		}
+
+	}
+
 	Image::Image(ImageSpecification specification)
 		:	m_Specification(specification)
 	{
@@ -45,6 +62,8 @@ namespace Charon {
 		// Allocate and create image object
 		VulkanAllocator allocator("Texture2D");
 		m_ImageInfo.MemoryAlloc = allocator.AllocateImage(imageCreateInfo, VMA_MEMORY_USAGE_GPU_ONLY, m_ImageInfo.Image);
+
+		Utils::SetObjectName(VK_OBJECT_TYPE_IMAGE, m_ImageInfo.Image, m_Specification.DebugName);
 
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
 		VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
@@ -121,6 +140,7 @@ namespace Charon {
 		imageViewCreateInfo.image = m_ImageInfo.Image;
 
 		VK_CHECK_RESULT(vkCreateImageView(device->GetLogicalDevice(), &imageViewCreateInfo, nullptr, &m_ImageInfo.ImageView));
+		Utils::SetObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, m_ImageInfo.ImageView, m_Specification.DebugName);
 
 		// Create sampler
 		VkSamplerCreateInfo samplerCreateInfo = {};
@@ -136,6 +156,7 @@ namespace Charon {
 		samplerCreateInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;
 
 		VK_CHECK_RESULT(vkCreateSampler(device->GetLogicalDevice(), &samplerCreateInfo, nullptr, &m_ImageInfo.Sampler));
+		Utils::SetObjectName(VK_OBJECT_TYPE_SAMPLER, m_ImageInfo.Sampler, m_Specification.DebugName);
 
 		// Create descriptor image info
 		m_DescriptorImageInfo.imageLayout = isDepth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
