@@ -161,6 +161,7 @@ namespace Charon {
 			pipelineSpec.Shader = m_ParticleShader;
 			pipelineSpec.TargetRenderPass = renderer->GetFramebuffer()->GetRenderPass();
 			pipelineSpec.Layout = layout;
+			pipelineSpec.WriteDepth = false;
 
 			m_ParticleRendererPipeline = CreateRef<VulkanPipeline>(pipelineSpec);
 
@@ -524,7 +525,7 @@ namespace Charon {
 			}
 
 			renderer->Render();
-			renderer->EndRenderPass();
+			renderer->EndRenderPass(); 
 		}
 
 		renderer->EndScene();

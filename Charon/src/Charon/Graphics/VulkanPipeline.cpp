@@ -155,7 +155,7 @@ namespace Charon {
 		VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
 		depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 		depthStencilState.depthTestEnable = VK_TRUE;
-		depthStencilState.depthWriteEnable = VK_TRUE;
+		depthStencilState.depthWriteEnable = m_Specification.WriteDepth ? VK_TRUE : VK_FALSE;
 		depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 		depthStencilState.depthBoundsTestEnable = VK_FALSE;
 		depthStencilState.back.failOp = VK_STENCIL_OP_KEEP;

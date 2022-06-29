@@ -43,11 +43,16 @@ namespace Charon {
 		// Resize window
 		if (m_Size != m_LastSize)
 		{
-			camera->SetProjectionMatrix(glm::perspectiveFov(glm::radians(45.0f), m_Size.x, m_Size.y, 0.01f, 1000.0f));
+			camera->SetProjectionMatrix(glm::perspectiveFov(glm::radians(45.0f), m_Size.x, m_Size.y, 0.1f, 100.0f));
 			m_LastSize = m_Size;
 
-			// TODO: Resize Framebuffer
-			// SceneRenderer::GetFinalBuffer()->Resize(m_Size.x, m_Size.y);
+			Ref<Framebuffer> framebuffer = SceneRenderer::GetFinalBuffer();
+			FramebufferSpecification spec = framebuffer->GetSpecification();
+			spec.Width = m_Size.x;
+			spec.Height = m_Size.y;
+			framebuffer = CreateRef<Framebuffer>(spec);
+			
+			Ref<Framebuffer> framebuffer1 = SceneRenderer::GetFinalBuffer();
 		}
 
 		ImGui::End();

@@ -226,6 +226,8 @@ namespace Charon {
 
 			vkCmdDrawIndexed(m_ActiveCommandBuffer, command.SubMesh.IndexCount, 1, command.SubMesh.IndexOffset, command.SubMesh.VertexOffset, 0);
 		}
+
+		m_DrawList.clear();
 	}
 
 	void Renderer::RenderUI()

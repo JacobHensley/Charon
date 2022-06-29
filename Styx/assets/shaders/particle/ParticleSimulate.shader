@@ -297,14 +297,12 @@ void main()
 					float depth0 = texture(u_DepthTexture, pixel).r;
 
 					float surfaceLinearDepth = LinearizeDepth(depth0, 0.1f, 100.0f);
-					float surfaceThickness = 0.1f;
+					float surfaceThickness = 5.0f;
 
-					float lifeLerp = 1 - particle.CurrentLife / particle.Lifetime;
-					float particleSize = particle.Scale.x;
+					float particleSize = 1;
 
 					// check if particle is colliding with the depth buffer, but not completely behind it:
-					//if ((pos2D.w + particleSize > surfaceLinearDepth) && (pos2D.w - particleSize < surfaceLinearDepth + surfaceThickness))
-					if ((pos2D.w - particleSize < surfaceLinearDepth - surfaceThickness))
+					if ((pos2D.w + particleSize > surfaceLinearDepth) && (pos2D.w - particleSize < surfaceLinearDepth + surfaceThickness))
 					{
 						particle.Color = vec3(1.0f, 0.0f, 1.0f);
 

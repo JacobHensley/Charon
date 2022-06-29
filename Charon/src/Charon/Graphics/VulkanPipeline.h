@@ -10,6 +10,7 @@ namespace Charon {
 		Ref<Shader> Shader = nullptr;
 		VertexBufferLayout* Layout = nullptr;
 		VkRenderPass TargetRenderPass = nullptr;
+		bool WriteDepth = true;
 	};
 
 	class VulkanPipeline
