@@ -15,6 +15,8 @@ namespace Charon {
         static void Begin(Scene* scene, Ref<Camera> camera);
         static void End();
 
+        static bool SetViewportSize(uint32_t width, uint32_t height);
+
         static void SubmitMesh(Ref<Mesh> mesh, glm::mat4 transform);
 
         static Ref<Framebuffer> GetFinalBuffer();

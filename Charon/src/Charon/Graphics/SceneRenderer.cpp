@@ -51,6 +51,12 @@ namespace Charon {
 		s_Data.RenderCommands.clear();
 	}
 
+	bool SceneRenderer::SetViewportSize(uint32_t width, uint32_t height)
+	{
+		Ref<Renderer> renderer = Application::GetApp().GetRenderer();
+		return renderer->SetViewportSize(width, height);
+	}
+
 	void SceneRenderer::SubmitMesh(Ref<Mesh> mesh, glm::mat4 transform)
 	{
 		s_Data.RenderCommands.push_back(RenderCommand({ mesh, transform }));

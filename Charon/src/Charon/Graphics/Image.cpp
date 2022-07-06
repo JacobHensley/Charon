@@ -29,6 +29,8 @@ namespace Charon {
 
 	Image::~Image()
 	{
+		return;
+
 		VulkanAllocator allocator("Texture2D");
 		allocator.DestroyImage(m_ImageInfo.Image, m_ImageInfo.MemoryAlloc);
 

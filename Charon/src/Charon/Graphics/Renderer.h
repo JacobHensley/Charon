@@ -45,6 +45,8 @@ namespace Charon {
 		void Render();
 		void RenderUI();
 
+		bool SetViewportSize(uint32_t width, uint32_t height);
+
 		void OnImGuiRender();
 
 		Ref<VulkanPipeline> GetPipeline() { return m_Pipeline; }
@@ -65,6 +67,8 @@ namespace Charon {
 
 	private:
 		Ref<Camera> m_ActiveCamera;
+
+		uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
 
 		CameraBuffer m_CameraBuffer;
 		std::vector<DrawCommand> m_DrawList;

@@ -175,6 +175,7 @@ namespace Charon {
         bool m_EnableSorting = true;
         bool m_Pause = false;
         bool m_NextFrame = false;
+        bool m_NeedsClear = true;
     };
 
 }

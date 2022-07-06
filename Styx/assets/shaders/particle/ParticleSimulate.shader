@@ -123,7 +123,7 @@ float rand(inout float seed, in vec2 uv)
 
 float LinearizeDepth(float z, float near, float far)
 {
-	float lin = 2.0 * far * near / (near + far - z * (near - far));
+	float lin = 2.0 * far * near / (near + far - (z ) * (near - far));
 	return lin;
 }
 
@@ -286,7 +286,7 @@ void main()
 			// Depth buffer collisions
 			{
 				vec4 pos2D = u_CameraBuffer.ViewProjection * vec4(particle.Position.xyz, 1);
-				pos2D.xyz /= pos2D.w;
+				pos2D.xyz /= pos2D.w; // pos2D.w == near -> far (0.1 -> 100)
 				if (pos2D.x > -1 && pos2D.x < 1 && pos2D.y > -1 && pos2D.y < 1)
 				{
 					vec2 uv = pos2D.xy * vec2(0.5f, -0.5f) + 0.5f;
@@ -296,10 +296,17 @@ void main()
 
 					float depth0 = texture(u_DepthTexture, pixel).r;
 
-					float surfaceLinearDepth = LinearizeDepth(depth0, 0.1f, 100.0f);
-					float surfaceThickness = 5.0f;
+					float surfaceLinearDepth = LinearizeDepth(depth0, 0.1f, 100.0f) * 100.0f;
+					float surfaceThickness = 1.5f;
 
-					float particleSize = 1;
+					float particleSize = 1.0;
+
+					particle.Color.r = 0;
+					particle.Color.g = surfaceLinearDepth;
+
+					//pos2D.z = pos2D.z * 0.5 + 0.5;
+					//pos2D.z = LinearizeDepth(pos2D.z, 0.1, 100.0f);
+					particle.Color.b = pos2D.w;
 
 					// check if particle is colliding with the depth buffer, but not completely behind it:
 					if ((pos2D.w + particleSize > surfaceLinearDepth) && (pos2D.w - particleSize < surfaceLinearDepth + surfaceThickness))

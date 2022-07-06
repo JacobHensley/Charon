@@ -287,17 +287,15 @@ namespace Charon {
 	{
 		auto renderer = Application::GetApp().GetRenderer();
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
-		static bool first = true;
-		if (first)
+		if (m_NeedsClear)
 		{
 			VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 			renderer->SetActiveCommandBuffer(commandBuffer);
 			renderer->BeginRenderPass(renderer->GetFramebuffer(), true);
 			renderer->EndRenderPass();
 			device->FlushCommandBuffer(commandBuffer, true);
-			first = false;
+			m_NeedsClear = false;
 		}
-
 
 		m_Camera->Update();
 
@@ -346,6 +344,9 @@ namespace Charon {
 
 		// Update particle simulation write descriptors
 		{
+			VkWriteDescriptorSet& depthTextureWD = m_ParticleSimulationWriteDescriptors[10];
+			depthTextureWD.pImageInfo = &renderer->GetFramebuffer()->GetDepthImage()->GetDescriptorImageInfo();
+
 			VkDescriptorSetAllocateInfo computeDescriptorSetAllocateInfo{};
 			computeDescriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 			computeDescriptorSetAllocateInfo.pSetLayouts = m_ParticleShaders.Begin->GetDescriptorSetLayouts().data();
@@ -533,13 +534,13 @@ namespace Charon {
 
 	void ParticleLayer::OnImGUIRender()
 	{
-		m_ViewportPanel->Render(m_Camera);
+		m_NeedsClear = m_ViewportPanel->Render(m_Camera);
 
 		// Particle Settings Panel
 		{
 			ImGui::Begin("Particle settings");
 
-			{
+			if (!m_NeedsClear) {
 				auto renderer = Application::GetApp().GetRenderer();
 				auto depthImage = renderer->GetFramebuffer()->GetDepthImage();
 

@@ -17,6 +17,8 @@ namespace Charon {
 	{
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
 
+		return; // lol for now
+
 		vkDestroyRenderPass(device->GetLogicalDevice(), m_RenderPass, nullptr);
 		vkDestroyFramebuffer(device->GetLogicalDevice(), m_Framebuffer, nullptr);
 	}

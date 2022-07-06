@@ -9,7 +9,7 @@ namespace Charon {
 	{
 	}
 
-	void ViewportPanel::Render(Ref<Camera> camera)
+	bool ViewportPanel::Render(Ref<Camera> camera)
 	{
 		// Set window settings
 		ImGuiIO io = ImGui::GetIO();
@@ -39,6 +39,7 @@ namespace Charon {
 		ImTextureID textureID = ImGui_ImplVulkan_AddTexture(descriptorInfo.sampler, descriptorInfo.imageView, descriptorInfo.imageLayout);
 
 		ImGui::Image((void*)textureID, ImVec2(m_Size.x, m_Size.y), ImVec2::ImVec2(0, 1), ImVec2::ImVec2(1, 0));
+		bool resized = SceneRenderer::SetViewportSize((uint32_t)m_Size.x, (uint32_t)m_Size.y);
 
 		// Resize window
 		if (m_Size != m_LastSize)
@@ -46,6 +47,7 @@ namespace Charon {
 			camera->SetProjectionMatrix(glm::perspectiveFov(glm::radians(45.0f), m_Size.x, m_Size.y, 0.1f, 100.0f));
 			m_LastSize = m_Size;
 
+#if 0
 			Ref<Framebuffer> framebuffer = SceneRenderer::GetFinalBuffer();
 			FramebufferSpecification spec = framebuffer->GetSpecification();
 			spec.Width = m_Size.x;
@@ -53,10 +55,13 @@ namespace Charon {
 			framebuffer = CreateRef<Framebuffer>(spec);
 			
 			Ref<Framebuffer> framebuffer1 = SceneRenderer::GetFinalBuffer();
+#endif
 		}
 
 		ImGui::End();
 		ImGui::PopStyleVar();
+
+		return resized;
 	}
 
 	glm::vec2 ViewportPanel::GetMouseNDC()

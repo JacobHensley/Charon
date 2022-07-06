@@ -4,6 +4,8 @@
 #include "Charon/Graphics/VertexBufferLayout.h"
 #include "Charon/ImGUI/imgui_impl_vulkan_with_textures.h"
 
+#include <glm/gtc/type_ptr.hpp>
+
 namespace Charon {
 
 	static Renderer* s_Instance = nullptr;
@@ -32,7 +34,7 @@ namespace Charon {
 		m_Shader = CreateRef<Shader>("assets/shaders/test.shader");
 
 		FramebufferSpecification framebufferSpec;
-		framebufferSpec.AttachmentFormats = { VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_D24_UNORM_S8_UINT };
+		framebufferSpec.AttachmentFormats = { VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT };
 		framebufferSpec.Width = 1280;
 		framebufferSpec.Height = 720;
 		framebufferSpec.ClearOnLoad = false;
@@ -84,6 +86,45 @@ namespace Charon {
 		m_CameraBuffer.View = m_ActiveCamera->GetViewMatrix();
 		m_CameraBuffer.InverseView = m_ActiveCamera->GetInverseViewMatrix();
 		m_CameraUniformBuffer->UpdateBuffer(&m_CameraBuffer);
+
+		if (false)
+		{
+			std::cout << '\n';
+			std::cout << "View:\n";
+			glm::mat4 iv = glm::inverse(m_CameraBuffer.View);
+			float* vp = glm::value_ptr(iv);
+			for (int x = 0; x < 4; x++)
+			{
+				for (int y = 0; y < 4; y++)
+				{
+					std::cout << vp[x + y * 4] << " | ";
+				}
+				std::cout << '\n';
+			}
+			std::cout << '\n';
+		}
+		if (false)
+		{
+			std::cout << '\n';
+			std::cout << "View Projection:\n";
+			float* vp = glm::value_ptr(m_CameraBuffer.ViewProjection);
+			for (int x = 0; x < 4; x++)
+			{
+				for (int y = 0; y < 4; y++)
+				{
+					std::cout << vp[x + y * 4] << " | ";
+				}
+				std::cout << '\n';
+			}
+			std::cout << '\n';
+		}
+
+		glm::vec3 p = glm::vec3(0.0f, 2.0f, 0.0f);
+		glm::vec4 pos2D = m_CameraBuffer.ViewProjection * glm::vec4(p, 1.0f);
+		glm::vec3 pos2D2 = glm::vec3(pos2D) / pos2D.w;
+		std::cout << "W: " << pos2D.w << std::endl;
+		std::cout << "X: " << pos2D2.x << ", Y: " << pos2D2.y << std::endl;
+
 
 		UniformBufferDescription cameraBufferDescription = m_Shader->GetUniformBufferDescriptions()[0];
 
@@ -155,6 +196,12 @@ namespace Charon {
 		}
 
 		vkCmdSetViewport(m_ActiveCommandBuffer, 0, 1, &viewport);
+
+		VkRect2D scissor;
+		scissor.offset = renderPassInfo.renderArea.offset;
+		scissor.extent = renderPassInfo.renderArea.extent;
+
+		vkCmdSetScissor(m_ActiveCommandBuffer, 0, 1, &scissor);
 		vkCmdBeginRenderPass(m_ActiveCommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		if (explicitClear)
@@ -233,6 +280,21 @@ namespace Charon {
 	void Renderer::RenderUI()
 	{
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_ActiveCommandBuffer);
+	}
+
+	bool Renderer::SetViewportSize(uint32_t width, uint32_t height)
+	{
+		if (width == m_ViewportWidth && height == m_ViewportHeight)
+			return false;
+
+		m_ViewportWidth = width;
+		m_ViewportHeight = height;
+
+		FramebufferSpecification spec = m_Framebuffer->GetSpecification();
+		spec.Width = width;
+		spec.Height = height;
+		m_Framebuffer = CreateRef<Framebuffer>(spec);
+		return true;
 	}
 
 	void Renderer::OnImGuiRender()

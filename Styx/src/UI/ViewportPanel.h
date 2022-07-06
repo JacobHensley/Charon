@@ -12,7 +12,7 @@ namespace Charon {
 		ViewportPanel();
 
 	public:
-		void Render(Ref<Camera> camera);
+		bool Render(Ref<Camera> camera);
 
 		glm::vec2 GetMouseNDC();
 

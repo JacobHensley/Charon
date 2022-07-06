@@ -5,8 +5,9 @@
 
 namespace Charon {
 
-	static const VkDynamicState s_DynamicStates[] = {
+	static const std::array<VkDynamicState, 3> s_DynamicStates = {
 		VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR,
 		VK_DYNAMIC_STATE_LINE_WIDTH
 	};
 
@@ -130,8 +131,8 @@ namespace Charon {
 		// Set dynamic states
 		VkPipelineDynamicStateCreateInfo dynamicState{};
 		dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-		dynamicState.dynamicStateCount = 2;
-		dynamicState.pDynamicStates = s_DynamicStates;
+		dynamicState.dynamicStateCount = (uint32_t)s_DynamicStates.size();
+		dynamicState.pDynamicStates = s_DynamicStates.data();
 
 		//Set push constants
 		VkPushConstantRange pushConstantRange;
