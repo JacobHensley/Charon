@@ -430,6 +430,18 @@ namespace Charon {
 			shaderResource.Dimension = type.image.dim;
 			shaderResource.Type = Utils::GetType(type);
 		}
+
+		// Get all acceleration structures
+		for (const spirv_cross::Resource& resource : resources.acceleration_structures)
+		{
+			auto& type = compiler.get_type(resource.base_type_id);
+
+			ShaderResource& shaderResource = m_ShaderResourceDescriptions.emplace_back();
+
+			shaderResource.Name = resource.name;
+			shaderResource.BindingPoint = compiler.get_decoration(resource.id, spv::DecorationBinding);
+			shaderResource.DescriptorSetIndex = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+		}
 	}
 
 	void Shader::CreateDescriptorSetLayouts()
@@ -464,6 +476,20 @@ namespace Charon {
 			layout.pImmutableSamplers = nullptr;
 
 			descriptorSetLayoutBindings[m_StorageBufferDescriptions[i].DescriptorSetIndex].push_back(layout);
+		}
+
+		// Create acceleration structures layout bindings
+		for (int i = 0; i < m_AccelerationStructureDescriptions.size(); i++)
+		{
+			VkDescriptorSetLayoutBinding layout{};
+
+			layout.binding = m_AccelerationStructureDescriptions[i].BindingPoint;
+			layout.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+			layout.descriptorCount = 1;
+			layout.stageFlags = VK_SHADER_STAGE_ALL;
+			layout.pImmutableSamplers = nullptr;
+
+			descriptorSetLayoutBindings[m_AccelerationStructureDescriptions[i].DescriptorSetIndex].push_back(layout);
 		}
 
 		// Create resource layout bindings
@@ -502,6 +528,14 @@ namespace Charon {
 				if (m_StorageBufferDescriptions[i].DescriptorSetIndex == descriptorSetIndex)
 				{
 					m_StorageBufferDescriptions[i].Index = ID;
+				}
+			}
+
+			for (int i = 0; i < m_AccelerationStructureDescriptions.size(); i++)
+			{
+				if (m_AccelerationStructureDescriptions[i].DescriptorSetIndex == descriptorSetIndex)
+				{
+					m_AccelerationStructureDescriptions[i].Index = ID;
 				}
 			}
 
@@ -580,6 +614,22 @@ namespace Charon {
 				else if (line.find("Compute") != std::string::npos)
 				{
 					stage = ShaderStage::COMPUTE;
+				}
+				else if (line.find("Raygen") != std::string::npos)
+				{
+					stage = ShaderStage::RAYGEN;
+				}
+				else if (line.find("RAY_ANY_HIT") != std::string::npos)
+				{
+					stage = ShaderStage::RAY_ANY_HIT;
+				}
+				else if (line.find("RAY_CLOSEST_HIT") != std::string::npos)
+				{
+					stage = ShaderStage::RAY_CLOSEST_HIT;
+				}
+				else if (line.find("RAY_MISS") != std::string::npos)
+				{
+					stage = ShaderStage::RAY_MISS;
 				}
 			}
 			else

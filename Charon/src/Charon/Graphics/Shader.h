@@ -9,7 +9,7 @@ namespace Charon {
 
 	enum class ShaderStage
 	{
-		NONE = -1, VERTEX, FRAGMENT, COMPUTE
+		NONE = -1, VERTEX, FRAGMENT, COMPUTE, RAYGEN, RAY_ANY_HIT, RAY_CLOSEST_HIT, RAY_MISS
 	};
 
 	enum class ShaderUniformType
@@ -56,6 +56,14 @@ namespace Charon {
 	};
 
 	struct StorageBufferDescription
+	{
+		std::string Name;
+		uint32_t BindingPoint;
+		uint32_t DescriptorSetIndex;
+		uint32_t Index;
+	};
+
+	struct AccelerationStructureDescription
 	{
 		std::string Name;
 		uint32_t BindingPoint;
@@ -110,6 +118,7 @@ namespace Charon {
 		std::vector<UniformBufferDescription> m_UniformBufferDescriptions;
 		std::vector<PushConstantRange> m_PushConstantBufferRanges;
 		std::vector<StorageBufferDescription> m_StorageBufferDescriptions;
+		std::vector<AccelerationStructureDescription> m_AccelerationStructureDescriptions;
 		std::vector<ShaderAttribute> m_ShaderAttributeDescriptions;
 		std::vector<ShaderResource> m_ShaderResourceDescriptions;
 
