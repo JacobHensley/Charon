@@ -28,7 +28,6 @@ namespace Charon {
 	public:
 		VulkanDevice();
 		~VulkanDevice();
-
 	public:
 		inline VkPhysicalDevice GetPhysicalDevice() { return m_PhysicalDevice; };
 		inline VkDevice GetLogicalDevice() { return m_LogicalDevice; };
@@ -42,14 +41,12 @@ namespace Charon {
 
 		inline SwapChainSupportDetails GetSwapChainSupportDetails() { return m_SwapChainSupportDetails; }
 		SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
-
 	private:
 		void Init();
 
 		bool IsDeviceSuitable(VkPhysicalDevice device);
 		bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 		QueueFamilyIndices FindQueueIndices(VkPhysicalDevice device);
-
 	private:
 		VkPhysicalDevice m_PhysicalDevice = nullptr;
 		VkDevice m_LogicalDevice = nullptr;
@@ -58,9 +55,14 @@ namespace Charon {
 
 		VkQueue m_GraphicsQueue = nullptr;
 		VkQueue m_PresentQueue = nullptr;
+		VkPhysicalDeviceProperties2 m_PhysicalDeviceProperties;
 
 		SwapChainSupportDetails m_SwapChainSupportDetails;
 		QueueFamilyIndices m_QueueIndices;
+
+		// Ray Tracing
+		VkPhysicalDeviceAccelerationStructurePropertiesKHR m_AccelerationStructureProperties{};
+		VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_RayTracingPipelineProperties{};
 	};
 
 }

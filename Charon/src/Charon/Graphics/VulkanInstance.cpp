@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "VulkanInstance.h"
 #include "Charon/Graphics/VulkanTools.h"
+#include "VulkanExtensions.h"
+
 #include <GLFW/glfw3.h>
 
 static const bool s_EnableValidationLayers = true;
@@ -175,6 +177,8 @@ namespace Charon {
 
         Utils::PrintAvailableExtensions();
         Utils::PrintAvailableLayers();
+
+        LoadInstanceExtensions(m_Instance);
     }
 
     void VulkanInstance::CreateDebugCallback()

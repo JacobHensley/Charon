@@ -3,8 +3,9 @@
 #include "VulkanInstance.h"
 #include "Charon/Core/Application.h"
 #include "Charon/Graphics/VulkanTools.h"
+#include "VulkanExtensions.h"
 
-static const std::vector<const char*> s_DeviceExtensions =
+static std::vector<const char*> s_DeviceExtensions =
 {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME
 };
@@ -81,12 +82,65 @@ namespace Charon {
 			queueCreateInfos.push_back(queueCreateInfo);
 		}
 
-		// Required device features
-		VkPhysicalDeviceFeatures deviceFeatures{};
-
-		VkPhysicalDeviceVulkan12Features v12Features = {};
+		VkPhysicalDeviceVulkan12Features v12Features{};
 		v12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 		v12Features.shaderBufferInt64Atomics = true;
+		v12Features.bufferDeviceAddress = true;
+		v12Features.descriptorBindingPartiallyBound = true;
+		v12Features.descriptorIndexing = true;
+		v12Features.runtimeDescriptorArray = true;
+		v12Features.bufferDeviceAddress = true;
+
+#define RTX 1
+#if RTX
+		// Ray Tracing
+		VkPhysicalDeviceRobustness2FeaturesEXT robustness2Features{};
+		robustness2Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT;
+		robustness2Features.nullDescriptor = VK_TRUE;
+
+		/*VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures{};
+		bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+		bufferDeviceAddressFeatures.pNext = &robustness2Features;
+		bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;*/
+
+		VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures{};
+		accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+		accelerationStructureFeatures.pNext = &robustness2Features;
+		accelerationStructureFeatures.accelerationStructure = VK_TRUE;
+		accelerationStructureFeatures.accelerationStructureCaptureReplay = VK_FALSE;
+		accelerationStructureFeatures.accelerationStructureIndirectBuild = VK_FALSE;
+		accelerationStructureFeatures.accelerationStructureHostCommands = VK_FALSE;
+		accelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind = VK_FALSE;
+
+		VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracingPipelineFeatures{};
+		rayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+		rayTracingPipelineFeatures.pNext = &accelerationStructureFeatures;
+		rayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+		rayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay = VK_FALSE;
+		rayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplayMixed = VK_FALSE;
+		rayTracingPipelineFeatures.rayTracingPipelineTraceRaysIndirect = VK_TRUE;
+		rayTracingPipelineFeatures.rayTraversalPrimitiveCulling = VK_TRUE;
+
+		/*VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{};
+		descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+		descriptorIndexingFeatures.pNext = &rayTracingPipelineFeatures;
+		descriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
+		descriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;*/
+
+		v12Features.pNext = &rayTracingPipelineFeatures;
+
+		s_DeviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+		s_DeviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+		s_DeviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+		s_DeviceExtensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+		s_DeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+		s_DeviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+		s_DeviceExtensions.push_back(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
+		s_DeviceExtensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
+#endif
+
+		// Required device features
+		VkPhysicalDeviceFeatures deviceFeatures{};
 
 		// Logical device info
 		VkDeviceCreateInfo createInfo{};
@@ -101,6 +155,7 @@ namespace Charon {
 		// Create logical device
 		VK_CHECK_RESULT(vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_LogicalDevice));
 
+		LoadDeviceExtensions(m_LogicalDevice);
 		gvkSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(m_LogicalDevice, "vkSetDebugUtilsObjectNameEXT");
 
 		// Create queue handles
@@ -173,8 +228,14 @@ namespace Charon {
 
 	bool VulkanDevice::IsDeviceSuitable(VkPhysicalDevice device)
 	{
-		VkPhysicalDeviceProperties deviceProperties;
-		vkGetPhysicalDeviceProperties(device, &deviceProperties);
+		m_AccelerationStructureProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+		m_RayTracingPipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+		m_RayTracingPipelineProperties.pNext = &m_AccelerationStructureProperties;
+
+		m_PhysicalDeviceProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+		m_PhysicalDeviceProperties.pNext = &m_RayTracingPipelineProperties;
+
+		vkGetPhysicalDeviceProperties2(device, &m_PhysicalDeviceProperties);
 
 		QueueFamilyIndices indices = FindQueueIndices(device);
 			
@@ -189,7 +250,7 @@ namespace Charon {
 		}
 
 		// Check to make sure the device is dedicated and has all required queues
-		return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && indices.isComplete() && extensionsSupported && swapChainAdequate;
+		return m_PhysicalDeviceProperties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && indices.isComplete() && extensionsSupported && swapChainAdequate;
 	}
 
 	bool VulkanDevice::CheckDeviceExtensionSupport(VkPhysicalDevice device)

@@ -144,6 +144,7 @@ namespace Charon {
 			SubMesh& subMesh = m_SubMeshes.emplace_back();
 			subMesh.IndexCount = subMeshIndexCount;
 			subMesh.IndexOffset = subMeshIndexOffset;
+			subMesh.VertexCount = subMeshVertexCount;
 			subMesh.VertexOffset = subMeshVertexOffset;
 
 			subMeshIndexOffset += subMeshIndexCount;
