@@ -19,6 +19,7 @@ namespace Charon {
 		struct VulkanAccelerationStructureInfo
 		{
 			VkAccelerationStructureKHR AccelerationStructure = nullptr;
+			VkDeviceAddress DeviceAddress = 0;
 			VkBuffer ASBuffer = nullptr;
 			VmaAllocation ASMemory = nullptr;
 			VkBuffer ScratchBuffer = nullptr;
@@ -34,7 +35,11 @@ namespace Charon {
 	private:
 		void Init();
 
+		void CreateTopLevelAccelerationStructure();
 		void CreateBottomLevelAccelerationStructure(Ref<Mesh> mesh, const SubMesh& submesh, VulkanAccelerationStructureInfo& outInfo);
+
+		uint64_t GetVulkanDeviceAddress(VkBuffer handle);
+
 	private:
 		AccelerationStructureSpecification m_Specification;
 		VulkanAccelerationStructureInfo m_TopLevelAccelerationStructure;
