@@ -9,7 +9,7 @@ namespace Charon {
 		VkBufferCreateInfo vertexBufferCreateInfo = {};
 		vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		vertexBufferCreateInfo.size = size;
-		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 		vertexBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 		// Allocate memory
@@ -35,7 +35,7 @@ namespace Charon {
 		VkBufferCreateInfo vertexBufferCreateInfo = {};
 		vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		vertexBufferCreateInfo.size = size;
-		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 
 		// Allocate memory
 		VulkanAllocator allocator("IndexBuffer");
@@ -54,7 +54,7 @@ namespace Charon {
 		VkBufferCreateInfo vertexBufferCreateInfo = {};
 		vertexBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		vertexBufferCreateInfo.size = size;
-		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		vertexBufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 
 		// Allocate memory
 		VulkanAllocator allocator("IndexBuffer");

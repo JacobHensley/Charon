@@ -38,11 +38,13 @@ namespace Charon {
 		// Render
 		GeometryPass();
 
-		// UI
 		Ref<Renderer> renderer = Application::GetApp().GetRenderer();
+#if 0
+		// UI
 		renderer->BeginRenderPass();
 		renderer->RenderUI();
 		renderer->EndRenderPass();
+#endif
 
 		renderer->EndScene();
 
@@ -65,7 +67,7 @@ namespace Charon {
 	void SceneRenderer::GeometryPass()
 	{
 		Ref<Renderer> renderer = Application::GetApp().GetRenderer();
-		renderer->BeginRenderPass(renderer->GetFramebuffer());
+		renderer->BeginRenderPass(renderer->GetFramebuffer(), true);
 
 		for (RenderCommand command : s_Data.RenderCommands)
 		{

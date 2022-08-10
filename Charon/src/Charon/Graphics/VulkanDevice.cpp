@@ -10,15 +10,6 @@ static std::vector<const char*> s_DeviceExtensions =
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME
 };
 
-PFN_vkSetDebugUtilsObjectNameEXT gvkSetDebugUtilsObjectNameEXT = nullptr;
-
-VKAPI_ATTR VkResult VKAPI_CALL vkSetDebugUtilsObjectNameEXT(
-	VkDevice                                    device,
-	const VkDebugUtilsObjectNameInfoEXT* pNameInfo)
-{
-	return gvkSetDebugUtilsObjectNameEXT(device, pNameInfo);
-}
-
 namespace Charon {
 
 	VulkanDevice::VulkanDevice()
@@ -156,7 +147,6 @@ namespace Charon {
 		VK_CHECK_RESULT(vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_LogicalDevice));
 
 		LoadDeviceExtensions(m_LogicalDevice);
-		gvkSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(m_LogicalDevice, "vkSetDebugUtilsObjectNameEXT");
 
 		// Create queue handles
 		vkGetDeviceQueue(m_LogicalDevice, indices.GraphicsQueue.value(), 0, &m_GraphicsQueue);

@@ -119,12 +119,13 @@ namespace Charon {
 			std::cout << '\n';
 		}
 
+#if 0
 		glm::vec3 p = glm::vec3(0.0f, 2.0f, 0.0f);
 		glm::vec4 pos2D = m_CameraBuffer.ViewProjection * glm::vec4(p, 1.0f);
 		glm::vec3 pos2D2 = glm::vec3(pos2D) / pos2D.w;
 		std::cout << "W: " << pos2D.w << std::endl;
 		std::cout << "X: " << pos2D2.x << ", Y: " << pos2D2.y << std::endl;
-
+#endif
 
 		UniformBufferDescription cameraBufferDescription = m_Shader->GetUniformBufferDescriptions()[0];
 
@@ -248,11 +249,11 @@ namespace Charon {
 		vkCmdEndRenderPass(m_ActiveCommandBuffer);
 	}
 
-	void Renderer::SubmitMesh(Ref<Mesh> mesh, glm::mat4& transform)
+	void Renderer::SubmitMesh(Ref<Mesh> mesh, const glm::mat4& transform)
 	{
 		for (const SubMesh& subMesh : mesh->GetSubMeshes())
 		{
-			m_DrawList.push_back({ subMesh, mesh->GetVertexBuffer(), mesh->GetIndexBuffer(), transform });
+			m_DrawList.push_back({ subMesh, mesh->GetVertexBuffer(), mesh->GetIndexBuffer(), transform * subMesh.Transform });
 		}
 	}
 
@@ -268,7 +269,7 @@ namespace Charon {
 			vkCmdBindVertexBuffers(m_ActiveCommandBuffer, 0, 1, &vertexBuffer, &offset);
 			vkCmdBindIndexBuffer(m_ActiveCommandBuffer, command.IndexBuffer->GetBuffer(), 0, VK_INDEX_TYPE_UINT16);
 
-			vkCmdPushConstants(m_ActiveCommandBuffer, m_Pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &(command.Transform * command.SubMesh.Transform));
+			vkCmdPushConstants(m_ActiveCommandBuffer, m_Pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &command.Transform);
 			vkCmdBindDescriptorSets(m_ActiveCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, m_DescriptorSets.size(), m_DescriptorSets.data(), 0, nullptr);
 
 			vkCmdDrawIndexed(m_ActiveCommandBuffer, command.SubMesh.IndexCount, 1, command.SubMesh.IndexOffset, command.SubMesh.VertexOffset, 0);

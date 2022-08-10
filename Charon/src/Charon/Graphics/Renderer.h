@@ -41,7 +41,7 @@ namespace Charon {
 		void BeginRenderPass(Ref<Framebuffer> framebuffer = nullptr, bool explicitClear = false);
 		void EndRenderPass();
 
-		void SubmitMesh(Ref<Mesh> mesh, glm::mat4& transform);
+		void SubmitMesh(Ref<Mesh> mesh, const glm::mat4& transform);
 		void Render();
 		void RenderUI();
 

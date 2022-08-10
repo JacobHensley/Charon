@@ -79,6 +79,7 @@ namespace Charon {
 		allocatorInfo.physicalDevice = device->GetPhysicalDevice();
 		allocatorInfo.device = device->GetLogicalDevice();
 		allocatorInfo.instance = Application::GetApp().GetVulkanInstance()->GetInstanceHandle();
+		allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
 		vmaCreateAllocator(&allocatorInfo, &s_Data->Allocator);
 

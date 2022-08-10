@@ -3,6 +3,8 @@
 
 #include "Charon/Core/Application.h"
 
+#include <glm/gtc/type_ptr.hpp>
+
 namespace Charon {
 
 
@@ -14,7 +16,6 @@ namespace Charon {
 
 	VulkanAccelerationStructure::~VulkanAccelerationStructure()
 	{
-
 	}
 
 	void VulkanAccelerationStructure::Init()
@@ -29,7 +30,7 @@ namespace Charon {
 				CreateBottomLevelAccelerationStructure(m_Specification.Mesh, submeshes[i], info);
 			}
 
-			void CreateTopLevelAccelerationStructure();
+			CreateTopLevelAccelerationStructure();
 		}
 
 	}
@@ -39,30 +40,36 @@ namespace Charon {
 		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
 		VulkanAllocator allocator("AccelerationStructure");
 
-		VkTransformMatrixKHR transform = {
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f };
-
 		std::vector<VkAccelerationStructureInstanceKHR> instances;
 
 		// Doing this for "every model" even though we only have one. Also blah blah somthing about instancing the objects for no dupes but we're not doing that yet.
-		for (int i = 0; i < 1; i++)
+		const auto& submeshes = m_Specification.Mesh->GetSubMeshes();
+		for (size_t i = 0; i < submeshes.size(); i++)
 		{
-			VkAccelerationStructureInstanceKHR accelerationAtructureInstance = instances.emplace_back();
-			accelerationAtructureInstance.transform = transform; // Use transform in spec but don't know how to convert.
-			accelerationAtructureInstance.instanceCustomIndex = i;
-			accelerationAtructureInstance.mask = 0;
+			const SubMesh& submesh = submeshes[i];
+
+			glm::mat4 rmWorldTransform = glm::transpose(m_Specification.Transform * submesh.Transform); // Row-major
+
+			VkAccelerationStructureDeviceAddressInfoKHR asDeviceAddressInfo = {};
+			asDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+			asDeviceAddressInfo.accelerationStructure = m_BottomLevelAccelerationStructure[i].AccelerationStructure;
+			VkDeviceAddress blasAddress = vkGetAccelerationStructureDeviceAddressKHR(device, &asDeviceAddressInfo);
+
+			VkAccelerationStructureInstanceKHR& accelerationAtructureInstance = instances.emplace_back();
+			memcpy(accelerationAtructureInstance.transform.matrix, glm::value_ptr(rmWorldTransform), sizeof(VkTransformMatrixKHR));
+			accelerationAtructureInstance.instanceCustomIndex = i; // TODO: come back to this
+			accelerationAtructureInstance.mask = 0xFF;
 			accelerationAtructureInstance.instanceShaderBindingTableRecordOffset = 0;
-			accelerationAtructureInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-			accelerationAtructureInstance.accelerationStructureReference = (uint64_t)m_BottomLevelAccelerationStructure[i].AccelerationStructure; // This conversion feels wrong.
+			accelerationAtructureInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FRONT_COUNTERCLOCKWISE_BIT_KHR;
+			accelerationAtructureInstance.accelerationStructureReference = blasAddress;
 		}
 
+		// TODO: use staging buffer
 		VkBufferCreateInfo bufferCreateInfo{};
 		bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		bufferCreateInfo.size = sizeof(VkAccelerationStructureInstanceKHR) * instances.size();
-		bufferCreateInfo.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-		m_TopLevelAccelerationStructure.InstancesMemory = allocator.AllocateBuffer(bufferCreateInfo, VMA_MEMORY_USAGE_GPU_ONLY, m_TopLevelAccelerationStructure.InstancesBuffer);
+		bufferCreateInfo.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+		m_TopLevelAccelerationStructure.InstancesMemory = allocator.AllocateBuffer(bufferCreateInfo, VMA_MEMORY_USAGE_CPU_TO_GPU, m_TopLevelAccelerationStructure.InstancesBuffer);
 
 		void* dstBuffer = allocator.MapMemory<void>(m_TopLevelAccelerationStructure.InstancesMemory);
 		memcpy(dstBuffer, instances.data(), bufferCreateInfo.size);
@@ -71,10 +78,10 @@ namespace Charon {
 		VkDeviceOrHostAddressConstKHR instance_data_device_address{};
 		instance_data_device_address.deviceAddress = GetVulkanDeviceAddress(m_TopLevelAccelerationStructure.InstancesBuffer);
 
-		VkAccelerationStructureGeometryDataKHR geometryData;
+		VkAccelerationStructureGeometryDataKHR geometryData{};
 		geometryData.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
 		geometryData.instances.arrayOfPointers = VK_FALSE;
-		geometryData.instances.data.deviceAddress = 0; // device buffer stuff
+		geometryData.instances.data = instance_data_device_address;
 
 		VkAccelerationStructureGeometryKHR accelerationStructureGeometry{};
 		accelerationStructureGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -85,7 +92,7 @@ namespace Charon {
 		VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo{};
 		accelerationStructureBuildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
 		accelerationStructureBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-		accelerationStructureBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+		accelerationStructureBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
 		accelerationStructureBuildGeometryInfo.geometryCount = 1;
 		accelerationStructureBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
 
@@ -107,7 +114,7 @@ namespace Charon {
 		vkCreateAccelerationStructureKHR(device, &accelerationStructureCreateInfo, nullptr, &m_TopLevelAccelerationStructure.AccelerationStructure);
 
 		bufferCreateInfo.size = accelerationStructureBuildSizesInfo.buildScratchSize;
-		bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+		bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		m_TopLevelAccelerationStructure.ScratchMemory = allocator.AllocateBuffer(bufferCreateInfo, VMA_MEMORY_USAGE_GPU_ONLY, m_TopLevelAccelerationStructure.ScratchBuffer);
 
 		VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo{};
@@ -130,7 +137,7 @@ namespace Charon {
 		VkCommandBuffer commandBuffer = Application::GetApp().GetVulkanDevice()->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 		vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &accelerationBuildGeometryInfo, accelerationBuildStructureRangeInfos.data());
 
-		VkMemoryBarrier barrier;
+		VkMemoryBarrier barrier{};
 		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 		barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
 		barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
@@ -197,7 +204,7 @@ namespace Charon {
 
 		// ScratchBuffer
 		bufferCreateInfo.size = sizeInfo.buildScratchSize;
-		bufferCreateInfo.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // TODO: do we really need VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+		bufferCreateInfo.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT; // TODO: do we really need VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
 		outInfo.ScratchMemory = allocator.AllocateBuffer(bufferCreateInfo, VMA_MEMORY_USAGE_GPU_ONLY, outInfo.ScratchBuffer);
 		inputs.scratchData.deviceAddress = GetVulkanDeviceAddress(outInfo.ScratchBuffer); // Modified
 
@@ -218,7 +225,7 @@ namespace Charon {
 		VkCommandBuffer commandBuffer = Application::GetApp().GetVulkanDevice()->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 		vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &inputs, buildRangeInfos.data());
 
-		VkMemoryBarrier barrier;
+		VkMemoryBarrier barrier{};
 		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 		barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
 		barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
