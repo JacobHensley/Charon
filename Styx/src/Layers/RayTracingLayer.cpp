@@ -10,6 +10,44 @@
 
 namespace Charon {
 
+	namespace Utils {
+
+		inline VkWriteDescriptorSet WriteDescriptorSet(
+			VkDescriptorSet dstSet,
+			VkDescriptorType type,
+			uint32_t binding,
+			const VkDescriptorBufferInfo* bufferInfo,
+			uint32_t descriptorCount = 1)
+		{
+			VkWriteDescriptorSet writeDescriptorSet{};
+			writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writeDescriptorSet.dstSet = dstSet;
+			writeDescriptorSet.descriptorType = type;
+			writeDescriptorSet.dstBinding = binding;
+			writeDescriptorSet.pBufferInfo = bufferInfo;
+			writeDescriptorSet.descriptorCount = descriptorCount;
+			return writeDescriptorSet;
+		}
+
+		inline VkWriteDescriptorSet WriteDescriptorSet(
+			VkDescriptorSet dstSet,
+			VkDescriptorType type,
+			uint32_t binding,
+			const VkDescriptorImageInfo* imageInfo,
+			uint32_t descriptorCount = 1)
+		{
+			VkWriteDescriptorSet writeDescriptorSet{};
+			writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writeDescriptorSet.dstSet = dstSet;
+			writeDescriptorSet.descriptorType = type;
+			writeDescriptorSet.dstBinding = binding;
+			writeDescriptorSet.pImageInfo = imageInfo;
+			writeDescriptorSet.descriptorCount = descriptorCount;
+			return writeDescriptorSet;
+		}
+	}
+
+
 	RayTracingLayer::RayTracingLayer()
 		: Layer("RayTracing")
 	{
@@ -25,10 +63,30 @@ namespace Charon {
 		m_SceneObject = m_Scene->CreateObject("Test Object");
 		m_MeshHandle = AssetManager::Load<Mesh>("assets/models/Cornell.gltf");
 
-		AccelerationStructureSpecification spec;
-		spec.Mesh = AssetManager::Get<Mesh>(m_MeshHandle);
-		spec.Transform = glm::mat4(1.0f);
-		m_AccelerationStructure = CreateRef<VulkanAccelerationStructure>(spec);
+
+		{
+			AccelerationStructureSpecification spec;
+			spec.Mesh = AssetManager::Get<Mesh>(m_MeshHandle);
+			spec.Transform = glm::mat4(1.0f);
+			m_AccelerationStructure = CreateRef<VulkanAccelerationStructure>(spec);
+		}
+
+
+		{
+			RayTracingPipelineSpecification spec;
+			spec.RayGenShader = CreateRef<Shader>("assets/shaders/RayTracing/RayGen.glsl");
+			spec.MissShader = CreateRef<Shader>("assets/shaders/RayTracing/Miss.glsl");
+			spec.ClosestHitShader = CreateRef<Shader>("assets/shaders/RayTracing/ClosestHit.glsl");
+			m_RayTracingPipeline = CreateRef<VulkanRayTracingPipeline>(spec);
+		}
+		{
+			ImageSpecification spec;
+			spec.Format = VK_FORMAT_R8G8B8A8_UNORM;
+			spec.Usage = VK_IMAGE_USAGE_STORAGE_BIT;
+			spec.Width = 1280;
+			spec.Height = 720;
+			m_Image = CreateRef<Image>(spec);
+		}
 
 		m_SceneObject.AddComponent<MeshComponent>(m_MeshHandle);
 	}
@@ -39,14 +97,76 @@ namespace Charon {
 		m_Scene->Update();
 	}
 
+	void RayTracingLayer::RayTracingPass()
+	{
+		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
+		auto renderer = Application::GetApp().GetRenderer();
+		VkCommandBuffer commandBuffer = renderer->GetActiveCommandBuffer();
+
+		Ref<UniformBuffer> uniformBuffer = renderer->GetCameraUB();
+
+		VkDescriptorSetAllocateInfo descriptorSetInfo{};
+		descriptorSetInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		descriptorSetInfo.pSetLayouts = &m_RayTracingPipeline->GetDescriptorSetLayout();
+		descriptorSetInfo.descriptorSetCount = 1;
+
+		VkDescriptorSet descriptorSet = renderer->AllocateDescriptorSet(descriptorSetInfo);
+
+		VkWriteDescriptorSetAccelerationStructureKHR asDescriptorWrite{};
+		asDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+		asDescriptorWrite.accelerationStructureCount = 1;
+		asDescriptorWrite.pAccelerationStructures = &m_AccelerationStructure->GetAccelerationStructure();
+
+		VkWriteDescriptorSet accelerationStructureWrite{};
+		accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		accelerationStructureWrite.pNext = &asDescriptorWrite;
+		accelerationStructureWrite.dstSet = descriptorSet;
+		accelerationStructureWrite.dstBinding = 0;
+		accelerationStructureWrite.descriptorCount = 1;
+		accelerationStructureWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+
+		std::vector<VkWriteDescriptorSet> rayTracingWriteDescriptors = {
+			accelerationStructureWrite,
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &m_Image->GetDescriptorImageInfo()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &uniformBuffer->getDescriptorBufferInfo()),
+		};
+
+		vkUpdateDescriptorSets(device->GetLogicalDevice(), rayTracingWriteDescriptors.size(), rayTracingWriteDescriptors.data(), 0, NULL);
+
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_RayTracingPipeline->GetPipeline());
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_RayTracingPipeline->GetPipelineLayout(), 0, 1, &descriptorSet, 0, 0);
+
+		const auto& shaderBindingTable = m_RayTracingPipeline->GetShaderBindingTable();
+
+		VkStridedDeviceAddressRegionKHR empty{};
+
+		vkCmdTraceRaysKHR(commandBuffer,
+			&shaderBindingTable[0].StridedDeviceAddressRegion,
+			&shaderBindingTable[1].StridedDeviceAddressRegion,
+			&shaderBindingTable[2].StridedDeviceAddressRegion,
+			&empty,
+			1280,
+			720,
+			1);
+
+	}
+
 	void RayTracingLayer::OnRender()
 	{
+		RayTracingPass();
+
 		m_Scene->Render(m_Camera);
 	}
 
 	void RayTracingLayer::OnImGUIRender()
 	{
 		m_ViewportPanel->Render(m_Camera);
+
+		ImGui::Begin("Ray Tracing");
+		const auto& descriptorInfo = m_Image->GetDescriptorImageInfo();
+		ImTextureID imTex = ImGui_ImplVulkan_AddTexture(descriptorInfo.sampler, descriptorInfo.imageView, descriptorInfo.imageLayout);
+		ImGui::Image(imTex, { 1280, 720 }, ImVec2(0, 1), ImVec2(1, 0));
+		ImGui::End();
 
 #if 0
 		ImGui::Begin("Viewport");
@@ -65,5 +185,7 @@ namespace Charon {
 		ImGui::ShowDemoWindow();
 #endif
 	}
+
+	
 
 }

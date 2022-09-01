@@ -72,6 +72,9 @@ namespace Charon {
 				case ShaderStage::VERTEX:	return shaderc_vertex_shader;
 				case ShaderStage::FRAGMENT: return shaderc_fragment_shader;
 				case ShaderStage::COMPUTE:  return shaderc_compute_shader;
+				case ShaderStage::RAYGEN:  return shaderc_raygen_shader;
+				case ShaderStage::RAY_MISS:  return shaderc_miss_shader;
+				case ShaderStage::RAY_CLOSEST_HIT:  return shaderc_closesthit_shader;
 			}
 
 			CR_ASSERT(false, "Unknown Type");
@@ -85,6 +88,9 @@ namespace Charon {
 				case ShaderStage::VERTEX:	return VK_SHADER_STAGE_VERTEX_BIT;
 				case ShaderStage::FRAGMENT: return VK_SHADER_STAGE_FRAGMENT_BIT;
 				case ShaderStage::COMPUTE:  return VK_SHADER_STAGE_COMPUTE_BIT;
+				case ShaderStage::RAYGEN:  return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+				case ShaderStage::RAY_MISS:  return VK_SHADER_STAGE_MISS_BIT_KHR;
+				case ShaderStage::RAY_CLOSEST_HIT:  return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 			}
 
 			CR_ASSERT(false, "Unknown Type");
@@ -595,6 +601,7 @@ namespace Charon {
 		ShaderStage stage = ShaderStage::NONE;
 
 		std::ifstream stream(path);
+		CR_ASSERT(stream.good(), "");
 		
 		std::stringstream ss[2];
 		std::string line;
@@ -615,19 +622,19 @@ namespace Charon {
 				{
 					stage = ShaderStage::COMPUTE;
 				}
-				else if (line.find("Raygen") != std::string::npos)
+				else if (line.find("RayGen") != std::string::npos)
 				{
 					stage = ShaderStage::RAYGEN;
 				}
-				else if (line.find("RAY_ANY_HIT") != std::string::npos)
+				else if (line.find("AnyHit") != std::string::npos)
 				{
 					stage = ShaderStage::RAY_ANY_HIT;
 				}
-				else if (line.find("RAY_CLOSEST_HIT") != std::string::npos)
+				else if (line.find("ClosestHit") != std::string::npos)
 				{
 					stage = ShaderStage::RAY_CLOSEST_HIT;
 				}
-				else if (line.find("RAY_MISS") != std::string::npos)
+				else if (line.find("Miss") != std::string::npos)
 				{
 					stage = ShaderStage::RAY_MISS;
 				}

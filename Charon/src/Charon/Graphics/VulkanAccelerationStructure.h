@@ -32,14 +32,13 @@ namespace Charon {
 	public:
 		VulkanAccelerationStructure(const AccelerationStructureSpecification& specification);
 		~VulkanAccelerationStructure();
+
+		const VkAccelerationStructureKHR& GetAccelerationStructure() { return m_TopLevelAccelerationStructure.AccelerationStructure; }
 	private:
 		void Init();
 
 		void CreateTopLevelAccelerationStructure();
 		void CreateBottomLevelAccelerationStructure(Ref<Mesh> mesh, const SubMesh& submesh, VulkanAccelerationStructureInfo& outInfo);
-
-		uint64_t GetVulkanDeviceAddress(VkBuffer handle);
-
 	private:
 		AccelerationStructureSpecification m_Specification;
 		VulkanAccelerationStructureInfo m_TopLevelAccelerationStructure;

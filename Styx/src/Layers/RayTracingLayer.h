@@ -1,11 +1,13 @@
 #pragma once
 #include "Charon/Core/Layer.h"
 #include "Charon/Graphics/Camera.h"
+#include "Charon/Graphics/Image.h"
 #include "Charon/Asset/AssetManager.h"
 #include "Charon/Scene/Scene.h"
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Charon/Graphics/VulkanAccelerationStructure.h"
+#include "Charon/Graphics/VulkanRayTracingPipeline.h"
 #include "UI/ViewportPanel.h"
 
 namespace Charon {
@@ -22,6 +24,7 @@ namespace Charon {
 		void OnRender();
 		void OnImGUIRender();
 
+		void RayTracingPass();
 	private:
 		Ref<Camera> m_Camera;
 		Ref<Scene> m_Scene;
@@ -30,6 +33,9 @@ namespace Charon {
 		Ref<ViewportPanel> m_ViewportPanel;
 
 		Ref<VulkanAccelerationStructure> m_AccelerationStructure;
+		Ref<VulkanRayTracingPipeline> m_RayTracingPipeline;
+		Ref<Image> m_Image;
+		std::vector<VkWriteDescriptorSet> m_RayTracingWriteDescriptors;
 	};
 
 }

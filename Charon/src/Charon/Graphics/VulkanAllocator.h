@@ -34,6 +34,7 @@ namespace Charon {
 
 		static VmaAllocator& GetVMAAllocator();
 
+		static uint64_t GetVulkanDeviceAddress(VkBuffer handle);
 	private:
 		std::string m_Tag;
 	};

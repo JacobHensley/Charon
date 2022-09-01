@@ -41,6 +41,8 @@ namespace Charon {
 
 		inline SwapChainSupportDetails GetSwapChainSupportDetails() { return m_SwapChainSupportDetails; }
 		SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
+
+		const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& GetRayTracingPipelineProperties() const { return m_RayTracingPipelineProperties; }
 	private:
 		void Init();
 

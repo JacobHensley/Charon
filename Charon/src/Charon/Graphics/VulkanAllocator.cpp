@@ -99,4 +99,12 @@ namespace Charon {
 		return s_Data->Allocator;
 	}
 
+	uint64_t VulkanAllocator::GetVulkanDeviceAddress(VkBuffer handle)
+	{
+		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
+		VkBufferDeviceAddressInfoKHR buffer_device_address_info{};
+		buffer_device_address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+		buffer_device_address_info.buffer = handle;
+		return vkGetBufferDeviceAddressKHR(device, &buffer_device_address_info);
+	}
 }

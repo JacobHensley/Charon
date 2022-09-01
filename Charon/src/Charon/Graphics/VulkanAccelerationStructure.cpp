@@ -76,7 +76,7 @@ namespace Charon {
 		allocator.UnmapMemory(m_TopLevelAccelerationStructure.InstancesMemory);
 
 		VkDeviceOrHostAddressConstKHR instance_data_device_address{};
-		instance_data_device_address.deviceAddress = GetVulkanDeviceAddress(m_TopLevelAccelerationStructure.InstancesBuffer);
+		instance_data_device_address.deviceAddress = VulkanAllocator::GetVulkanDeviceAddress(m_TopLevelAccelerationStructure.InstancesBuffer);
 
 		VkAccelerationStructureGeometryDataKHR geometryData{};
 		geometryData.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
@@ -125,7 +125,7 @@ namespace Charon {
 		accelerationBuildGeometryInfo.dstAccelerationStructure = m_TopLevelAccelerationStructure.AccelerationStructure;
 		accelerationBuildGeometryInfo.geometryCount = 1;
 		accelerationBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
-		accelerationBuildGeometryInfo.scratchData.deviceAddress = GetVulkanDeviceAddress(m_TopLevelAccelerationStructure.ScratchBuffer);
+		accelerationBuildGeometryInfo.scratchData.deviceAddress = VulkanAllocator::GetVulkanDeviceAddress(m_TopLevelAccelerationStructure.ScratchBuffer);
 
 		VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo;
 		accelerationStructureBuildRangeInfo.primitiveCount = primitive_count;
@@ -164,11 +164,11 @@ namespace Charon {
 
 		VkAccelerationStructureGeometryTrianglesDataKHR trianglesData{};
 		trianglesData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
-		trianglesData.vertexData.deviceAddress = GetVulkanDeviceAddress(mesh->GetVertexBuffer()->GetBuffer()); // Modified
+		trianglesData.vertexData.deviceAddress = VulkanAllocator::GetVulkanDeviceAddress(mesh->GetVertexBuffer()->GetBuffer()) + submesh.VertexOffset * sizeof(Vertex); // Modified
 		trianglesData.vertexStride = sizeof(Vertex);
 		trianglesData.maxVertex = submesh.VertexCount;
 		trianglesData.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
-		trianglesData.indexData.deviceAddress = GetVulkanDeviceAddress(mesh->GetIndexBuffer()->GetBuffer()); // Modified
+		trianglesData.indexData.deviceAddress = VulkanAllocator::GetVulkanDeviceAddress(mesh->GetIndexBuffer()->GetBuffer()) + submesh.IndexOffset * sizeof(uint16_t); // Modified
 		trianglesData.indexType = VK_INDEX_TYPE_UINT16;
 
 		VkAccelerationStructureGeometryDataKHR geometryData{};
@@ -206,7 +206,7 @@ namespace Charon {
 		bufferCreateInfo.size = sizeInfo.buildScratchSize;
 		bufferCreateInfo.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT; // TODO: do we really need VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
 		outInfo.ScratchMemory = allocator.AllocateBuffer(bufferCreateInfo, VMA_MEMORY_USAGE_GPU_ONLY, outInfo.ScratchBuffer);
-		inputs.scratchData.deviceAddress = GetVulkanDeviceAddress(outInfo.ScratchBuffer); // Modified
+		inputs.scratchData.deviceAddress = VulkanAllocator::GetVulkanDeviceAddress(outInfo.ScratchBuffer); // Modified
 
 		VkAccelerationStructureCreateInfoKHR createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -233,15 +233,6 @@ namespace Charon {
 			0, 1, &barrier, 0, nullptr, 0, nullptr);
 
 		Application::GetApp().GetVulkanDevice()->FlushCommandBuffer(commandBuffer, true);
-	}
-
-	uint64_t VulkanAccelerationStructure::GetVulkanDeviceAddress(VkBuffer handle)
-	{
-		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
-		VkBufferDeviceAddressInfoKHR buffer_device_address_info{};
-		buffer_device_address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-		buffer_device_address_info.buffer = handle;
-		return vkGetBufferDeviceAddressKHR(device, &buffer_device_address_info);
 	}
 
 }

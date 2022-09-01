@@ -56,7 +56,9 @@ namespace Charon {
 		imageCreateInfo.arrayLayers = m_Specification.LayerCount;
 		imageCreateInfo.samples = m_Specification.SampleCount;
 		imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		imageCreateInfo.usage = m_Specification.Usage | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		imageCreateInfo.usage = m_Specification.Usage | VK_IMAGE_USAGE_SAMPLED_BIT;
+		if ((imageCreateInfo.usage & VK_IMAGE_USAGE_STORAGE_BIT) == 0)
+			imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
 		// Create staging buffer with image data	
 		VulkanBuffer stagingBuffer(m_Specification.Data, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
@@ -68,13 +70,14 @@ namespace Charon {
 		Utils::SetObjectName(VK_OBJECT_TYPE_IMAGE, m_ImageInfo.Image, m_Specification.DebugName);
 
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
-		VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
 		bool isDepth = IsDepthFormat(m_Specification.Format);
 		VkImageAspectFlags aspectFlag = isDepth ? (VK_IMAGE_ASPECT_DEPTH_BIT) : VK_IMAGE_ASPECT_COLOR_BIT;
 
 		if (m_Specification.Data)
 		{
+			VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+
 			// Range of image to copy (only the first mip)
 			VkImageSubresourceRange range;
 			range.aspectMask = aspectFlag;
@@ -161,7 +164,39 @@ namespace Charon {
 		Utils::SetObjectName(VK_OBJECT_TYPE_SAMPLER, m_ImageInfo.Sampler, m_Specification.DebugName);
 
 		// Create descriptor image info
-		m_DescriptorImageInfo.imageLayout = isDepth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		if (imageCreateInfo.usage & VK_IMAGE_USAGE_STORAGE_BIT)
+		{
+			VkCommandBuffer commandBuffer = device->CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+
+			m_DescriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+			// Range of image to copy (only the first mip)
+			VkImageSubresourceRange range;
+			range.aspectMask = aspectFlag;
+			range.baseMipLevel = 0;
+			range.levelCount = 1;
+			range.baseArrayLayer = 0;
+			range.layerCount = m_Specification.LayerCount;
+
+			// Transfer image from destination optimal layout to shader read optimal
+			InsertImageMemoryBarrier(
+				commandBuffer,
+				m_ImageInfo.Image,
+				0,
+				VK_ACCESS_SHADER_WRITE_BIT,
+				VK_IMAGE_LAYOUT_UNDEFINED,
+				m_DescriptorImageInfo.imageLayout,
+				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+				range);
+
+			// Submit and free command buffer
+			device->FlushCommandBuffer(commandBuffer, true);
+		}
+		else
+		{
+			m_DescriptorImageInfo.imageLayout = isDepth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
 		m_DescriptorImageInfo.imageView = m_ImageInfo.ImageView;
 		m_DescriptorImageInfo.sampler = m_ImageInfo.Sampler;
 	}

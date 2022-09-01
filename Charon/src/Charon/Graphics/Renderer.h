@@ -14,6 +14,7 @@ namespace Charon {
 		glm::mat4 InverseViewProjection;
 		glm::mat4 View;
 		glm::mat4 InverseView;
+		glm::mat4 InverseProjection;
 	};
 
 	struct DrawCommand

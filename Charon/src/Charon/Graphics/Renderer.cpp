@@ -85,6 +85,7 @@ namespace Charon {
 		m_CameraBuffer.InverseViewProjection = m_ActiveCamera->GetInverseVP();
 		m_CameraBuffer.View = m_ActiveCamera->GetViewMatrix();
 		m_CameraBuffer.InverseView = m_ActiveCamera->GetInverseViewMatrix();
+		m_CameraBuffer.InverseProjection = glm::inverse(m_ActiveCamera->GetProjectionMatrix());
 		m_CameraUniformBuffer->UpdateBuffer(&m_CameraBuffer);
 
 		if (false)

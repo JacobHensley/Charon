@@ -14,7 +14,7 @@ namespace Charon {
 
 	struct ImageSpecification
 	{
-		uint8_t* Data;
+		uint8_t* Data = nullptr;
 		uint32_t Width;
 		uint32_t Height;
 		VkFormat Format;
