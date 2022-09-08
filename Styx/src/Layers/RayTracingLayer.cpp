@@ -8,6 +8,8 @@
 #include "Charon/ImGui/imgui_impl_vulkan_with_textures.h"
 #include "imgui/imgui.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 namespace Charon {
 
 	namespace Utils {
@@ -99,11 +101,22 @@ namespace Charon {
 
 	void RayTracingLayer::RayTracingPass()
 	{
+		if (m_RTWidth == 0 || m_RTHeight == 0)
+			return;
+
+		// Resize image if needed
+		if (m_Image->GetSpecification().Width != m_RTWidth || m_Image->GetSpecification().Height != m_RTHeight)
+		{
+			m_Image->Resize(m_RTWidth, m_RTHeight);
+			m_Camera->SetProjectionMatrix(glm::perspectiveFov(glm::radians(45.0f), (float)m_RTWidth, (float)m_RTHeight, 0.1f, 100.0f));
+		}
+
 		Ref<VulkanDevice> device = Application::GetApp().GetVulkanDevice();
 		auto renderer = Application::GetApp().GetRenderer();
 		VkCommandBuffer commandBuffer = renderer->GetActiveCommandBuffer();
 
 		Ref<UniformBuffer> uniformBuffer = renderer->GetCameraUB();
+		Ref<StorageBuffer> submeshDataSB = m_AccelerationStructure->GetSubmeshDataStorageBuffer();
 
 		VkDescriptorSetAllocateInfo descriptorSetInfo{};
 		descriptorSetInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -125,10 +138,27 @@ namespace Charon {
 		accelerationStructureWrite.descriptorCount = 1;
 		accelerationStructureWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 
+		const auto& asSpec = m_AccelerationStructure->GetSpecification();
+
+		std::vector<VkDescriptorBufferInfo> vertexBufferInfos;
+		{
+			VkBuffer vb = asSpec.Mesh->GetVertexBuffer()->GetBuffer();
+			vertexBufferInfos.push_back({ vb, 0, VK_WHOLE_SIZE });
+		}
+
+		std::vector<VkDescriptorBufferInfo> indexBufferInfos;
+		{
+			VkBuffer ib = asSpec.Mesh->GetIndexBuffer()->GetBuffer();
+			indexBufferInfos.push_back({ ib, 0, VK_WHOLE_SIZE });
+		}
+
 		std::vector<VkWriteDescriptorSet> rayTracingWriteDescriptors = {
 			accelerationStructureWrite,
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &m_Image->GetDescriptorImageInfo()),
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &uniformBuffer->getDescriptorBufferInfo()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3, vertexBufferInfos.data(), (uint32_t)vertexBufferInfos.size()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4, indexBufferInfos.data(), (uint32_t)indexBufferInfos.size()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5, &submeshDataSB->getDescriptorBufferInfo()),
 		};
 
 		vkUpdateDescriptorSets(device->GetLogicalDevice(), rayTracingWriteDescriptors.size(), rayTracingWriteDescriptors.data(), 0, NULL);
@@ -145,8 +175,8 @@ namespace Charon {
 			&shaderBindingTable[1].StridedDeviceAddressRegion,
 			&shaderBindingTable[2].StridedDeviceAddressRegion,
 			&empty,
-			1280,
-			720,
+			m_RTWidth,
+			m_RTHeight,
 			1);
 
 	}
@@ -160,12 +190,15 @@ namespace Charon {
 
 	void RayTracingLayer::OnImGUIRender()
 	{
-		m_ViewportPanel->Render(m_Camera);
+		m_ViewportPanel->Render(nullptr);
 
 		ImGui::Begin("Ray Tracing");
 		const auto& descriptorInfo = m_Image->GetDescriptorImageInfo();
+		m_RTWidth = (uint32_t)ImGui::GetContentRegionAvail().x;
+		m_RTHeight = (uint32_t)ImGui::GetContentRegionAvail().y;
+
 		ImTextureID imTex = ImGui_ImplVulkan_AddTexture(descriptorInfo.sampler, descriptorInfo.imageView, descriptorInfo.imageLayout);
-		ImGui::Image(imTex, { 1280, 720 }, ImVec2(0, 1), ImVec2(1, 0));
+		ImGui::Image(imTex, { (float)m_RTWidth, (float)m_RTHeight}, ImVec2(0, 1), ImVec2(1, 0));
 		ImGui::End();
 
 #if 0

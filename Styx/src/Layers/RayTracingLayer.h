@@ -32,6 +32,8 @@ namespace Charon {
 		AssetHandle m_MeshHandle;
 		Ref<ViewportPanel> m_ViewportPanel;
 
+		uint32_t m_RTWidth = 0, m_RTHeight = 0;
+
 		Ref<VulkanAccelerationStructure> m_AccelerationStructure;
 		Ref<VulkanRayTracingPipeline> m_RayTracingPipeline;
 		Ref<Image> m_Image;

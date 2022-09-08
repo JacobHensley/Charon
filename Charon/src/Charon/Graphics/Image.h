@@ -32,14 +32,15 @@ namespace Charon {
 		Image(ImageSpecification specification);
 		~Image();
 
+		void Release();
+		void Resize(uint32_t width, uint32_t height);
 	public:
+
 		inline const ImageSpecification& GetSpecification() const { return m_Specification; }
 		inline const VkDescriptorImageInfo& GetDescriptorImageInfo() const { return m_DescriptorImageInfo; }
-
 	public:
 		static bool IsDepthFormat(VkFormat format);
 		static bool IsStencilFormat(VkFormat format);
-
 	private:
 		void Init();
 

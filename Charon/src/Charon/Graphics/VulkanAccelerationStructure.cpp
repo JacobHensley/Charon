@@ -24,6 +24,8 @@ namespace Charon {
 		{
 			const auto& submeshes = m_Specification.Mesh->GetSubMeshes();
 			m_BottomLevelAccelerationStructure.resize(submeshes.size());
+			m_SubmeshData.resize(submeshes.size());
+			m_SubmeshDataStorageBuffer = CreateRef<StorageBuffer>(sizeof(SubmeshData) * submeshes.size());
 			for (size_t i = 0; i < submeshes.size(); i++)
 			{
 				auto& info = m_BottomLevelAccelerationStructure[i];
@@ -48,6 +50,13 @@ namespace Charon {
 		{
 			const SubMesh& submesh = submeshes[i];
 
+			SubmeshData& submeshData = m_SubmeshData[i];
+
+			submeshData.BufferIndex = 0; // TODO: when we support multiple Meshes, this needs to be Mesh index (not submesh)
+			submeshData.VertexOffset = submesh.VertexOffset;
+			submeshData.IndexOffset = submesh.IndexOffset;
+			submeshData.MaterialIndex = 0; // TODO: materials
+
 			glm::mat4 rmWorldTransform = glm::transpose(m_Specification.Transform * submesh.Transform); // Row-major
 
 			VkAccelerationStructureDeviceAddressInfoKHR asDeviceAddressInfo = {};
@@ -57,7 +66,7 @@ namespace Charon {
 
 			VkAccelerationStructureInstanceKHR& accelerationAtructureInstance = instances.emplace_back();
 			memcpy(accelerationAtructureInstance.transform.matrix, glm::value_ptr(rmWorldTransform), sizeof(VkTransformMatrixKHR));
-			accelerationAtructureInstance.instanceCustomIndex = i; // TODO: come back to this
+			accelerationAtructureInstance.instanceCustomIndex = i;
 			accelerationAtructureInstance.mask = 0xFF;
 			accelerationAtructureInstance.instanceShaderBindingTableRecordOffset = 0;
 			accelerationAtructureInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FRONT_COUNTERCLOCKWISE_BIT_KHR;
@@ -150,6 +159,12 @@ namespace Charon {
 		acceleration_device_address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
 		acceleration_device_address_info.accelerationStructure = m_TopLevelAccelerationStructure.AccelerationStructure;
 		m_TopLevelAccelerationStructure.DeviceAddress = vkGetAccelerationStructureDeviceAddressKHR(device, &acceleration_device_address_info);
+
+		{
+			SubmeshData* submeshData = m_SubmeshDataStorageBuffer->Map<SubmeshData>();
+			memcpy(submeshData, m_SubmeshData.data(), sizeof(SubmeshData) * m_SubmeshData.size());
+			m_SubmeshDataStorageBuffer->Unmap();
+		}
 	}
 
 	void VulkanAccelerationStructure::CreateBottomLevelAccelerationStructure(Ref<Mesh> mesh, const SubMesh& submesh, VulkanAccelerationStructureInfo& outInfo)

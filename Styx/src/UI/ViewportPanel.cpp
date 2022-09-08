@@ -42,7 +42,7 @@ namespace Charon {
 		bool resized = SceneRenderer::SetViewportSize((uint32_t)m_Size.x, (uint32_t)m_Size.y);
 
 		// Resize window
-		if (m_Size != m_LastSize)
+		if (m_Size != m_LastSize && camera)
 		{
 			camera->SetProjectionMatrix(glm::perspectiveFov(glm::radians(45.0f), m_Size.x, m_Size.y, 0.1f, 100.0f));
 			m_LastSize = m_Size;

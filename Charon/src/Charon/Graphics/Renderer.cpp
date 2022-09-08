@@ -47,6 +47,8 @@ namespace Charon {
 		m_Pipeline = CreateRef<VulkanPipeline>(pipelineSpec);
 		
 		CreateDescriptorPools();
+
+		m_ResourceFreeQueue.resize(swapChain->GetFramesInFlight());
 	}
 
 	void Renderer::BeginFrame()
@@ -54,6 +56,13 @@ namespace Charon {
 		Ref<SwapChain> swapChain = Application::GetApp().GetVulkanSwapChain();
 		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
 		uint32_t frameIndex = swapChain->GetCurrentBufferIndex();
+
+		// Free resources
+		auto& resourceFreeQueue = m_ResourceFreeQueue[frameIndex];
+		for (auto& function : resourceFreeQueue)
+			function();
+		
+		resourceFreeQueue.clear();
 
 		m_ActiveCommandBuffer = swapChain->GetCurrentCommandBuffer();
 
@@ -351,6 +360,11 @@ namespace Charon {
 
 		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, result.data()));
 		return result;
+	}
+
+	uint32_t Renderer::GetCurrentBufferIndex() const
+	{
+		return Application::GetApp().GetVulkanSwapChain()->GetCurrentBufferIndex();
 	}
 
 	VkDescriptorSet Renderer::AllocateDescriptorSet(VkDescriptorSetAllocateInfo allocInfo)

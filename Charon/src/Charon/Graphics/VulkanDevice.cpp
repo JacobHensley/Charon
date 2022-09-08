@@ -132,6 +132,7 @@ namespace Charon {
 
 		// Required device features
 		VkPhysicalDeviceFeatures deviceFeatures{};
+		deviceFeatures.samplerAnisotropy = VK_TRUE;
 
 		// Logical device info
 		VkDeviceCreateInfo createInfo{};

@@ -33,7 +33,10 @@ namespace Charon {
 		VulkanAccelerationStructure(const AccelerationStructureSpecification& specification);
 		~VulkanAccelerationStructure();
 
+		const AccelerationStructureSpecification& GetSpecification() const { return m_Specification; }
+
 		const VkAccelerationStructureKHR& GetAccelerationStructure() { return m_TopLevelAccelerationStructure.AccelerationStructure; }
+		Ref<StorageBuffer> GetSubmeshDataStorageBuffer() const { return m_SubmeshDataStorageBuffer; }
 	private:
 		void Init();
 
@@ -43,6 +46,16 @@ namespace Charon {
 		AccelerationStructureSpecification m_Specification;
 		VulkanAccelerationStructureInfo m_TopLevelAccelerationStructure;
 		std::vector<VulkanAccelerationStructureInfo> m_BottomLevelAccelerationStructure;
+
+		Ref<StorageBuffer> m_SubmeshDataStorageBuffer;
+		struct SubmeshData
+		{
+			uint32_t BufferIndex;
+			uint32_t VertexOffset;
+			uint32_t IndexOffset;
+			uint32_t MaterialIndex;
+		};
+		std::vector<SubmeshData> m_SubmeshData;
 	};
 
 }

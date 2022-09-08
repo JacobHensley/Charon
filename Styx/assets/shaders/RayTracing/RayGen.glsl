@@ -25,6 +25,7 @@ struct RayDesc
 struct Payload
 {
 	float Distance;
+	vec3 Albedo;
 };
 
 layout(location = 0) rayPayloadEXT Payload g_RayPayload;
@@ -52,6 +53,8 @@ void main()
 	// as, flags, cullmask, offset x3, origin, min, dir, max, unknown
 	traceRayEXT(u_TopLevelAS, flags, mask, 0, 0, 0, desc.Origin, desc.TMin, desc.Direction, desc.TMax, 0);
 
+	vec3 color = vec3((1.0 - (g_RayPayload.Distance * 0.1)) * 0.5);
+	color = g_RayPayload.Albedo;
 	if (g_RayPayload.Distance == -1.0)
 	{
 		vec3 clearColor = vec3(1, 0, 1);
@@ -60,7 +63,7 @@ void main()
 	}
 	else
 	{
-		imageStore(o_Image, ivec2(gl_LaunchIDEXT.xy), vec4(vec3((1.0 - (g_RayPayload.Distance * 0.1)) * 0.5), 1));
+		imageStore(o_Image, ivec2(gl_LaunchIDEXT.xy), vec4(color, 1));
 	}
 
 	// 

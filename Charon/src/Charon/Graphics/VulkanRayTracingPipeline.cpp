@@ -74,16 +74,38 @@ namespace Charon {
 	{
 		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
 
-		std::vector<VkDescriptorSetLayoutBinding> layoutBindings = {
+		// TODO: retrieve caps
+		const uint32_t MaxStorageBufferDescriptorCount = 2048;
+
+		std::array<VkDescriptorSetLayoutBinding, 6> layoutBindings = {
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 1),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 2),
+			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 3, MaxStorageBufferDescriptorCount),
+			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 4, MaxStorageBufferDescriptorCount),
+			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 5),
 		};
 
 		// TODO: flags (for bindless)
+
+		std::array<VkDescriptorBindingFlags, layoutBindings.size()> bindingFlags =
+		{
+			0, // Binding 0: Acceleration Structure
+			0, // Binding 1: Storage Image
+			0, // Binding 2: Camera Uniform Buffer
+			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT, // Binding 3: Vertex Buffers
+			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT, // Binding 4: Index Buffers
+			0 // Binding 5: Submesh Data
+		};
+
+		VkDescriptorSetLayoutBindingFlagsCreateInfo descriptorSetLayoutBindingsCreateInfo{};
+		descriptorSetLayoutBindingsCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+		descriptorSetLayoutBindingsCreateInfo.pBindingFlags = bindingFlags.data();
+		descriptorSetLayoutBindingsCreateInfo.bindingCount = (uint32_t)bindingFlags.size();
 		
 		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
 		descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		descriptorSetLayoutCreateInfo.pNext = &descriptorSetLayoutBindingsCreateInfo;
 		descriptorSetLayoutCreateInfo.pBindings = layoutBindings.data();
 		descriptorSetLayoutCreateInfo.bindingCount = (uint32_t)layoutBindings.size();
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, nullptr, &m_DescriptorSetLayout));

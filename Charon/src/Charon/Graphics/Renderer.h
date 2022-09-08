@@ -54,6 +54,7 @@ namespace Charon {
 		std::vector<VkDescriptorSet> GetDescriptorSets() { return m_DescriptorSets; }
 		void SetActiveCommandBuffer(VkCommandBuffer commandBuffer) { m_ActiveCommandBuffer = commandBuffer; }
 		VkCommandBuffer GetActiveCommandBuffer() { return m_ActiveCommandBuffer; }
+		uint32_t GetCurrentBufferIndex() const;
 
 		Ref<Framebuffer> GetFramebuffer() { return m_Framebuffer; }
 
@@ -61,6 +62,13 @@ namespace Charon {
 		static VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetLayout descLayout);
 
 		Ref<UniformBuffer> GetCameraUB() { return m_CameraUniformBuffer; }
+
+		template<typename Fn>
+		void SubmitResourceFree(Fn&& function)
+		{
+			uint32_t index = GetCurrentBufferIndex();
+			m_ResourceFreeQueue[index].emplace_back(function);
+		}
 	private:
 		void Init();
 		void CreateDescriptorPools();
@@ -81,6 +89,8 @@ namespace Charon {
 		VkCommandBuffer m_ActiveCommandBuffer = nullptr;
 		std::vector<VkDescriptorSet> m_DescriptorSets;
 		std::vector<VkDescriptorPool> m_DescriptorPools;
+
+		std::vector<std::vector<std::function<void()>>> m_ResourceFreeQueue;
 	};
 
 }

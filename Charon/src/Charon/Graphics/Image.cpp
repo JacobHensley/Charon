@@ -29,14 +29,39 @@ namespace Charon {
 
 	Image::~Image()
 	{
-		return;
+		Release();
+	}
 
-		VulkanAllocator allocator("Texture2D");
-		allocator.DestroyImage(m_ImageInfo.Image, m_ImageInfo.MemoryAlloc);
+	void Image::Release()
+	{
+		if (!m_ImageInfo.Image)
+			return;
 
-		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
-		vkDestroyImageView(device, m_ImageInfo.ImageView, nullptr);
-		vkDestroySampler(device, m_ImageInfo.Sampler, nullptr);
+		Ref<Renderer> renderer = Application::GetApp().GetRenderer();
+		renderer->SubmitResourceFree([info = m_ImageInfo]()
+		{
+			VulkanAllocator allocator("Texture2D");
+			allocator.DestroyImage(info.Image, info.MemoryAlloc);
+
+			VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
+			vkDestroyImageView(device, info.ImageView, nullptr);
+			vkDestroySampler(device, info.Sampler, nullptr);
+		});
+
+		m_ImageInfo.Image = nullptr;
+		m_ImageInfo.MemoryAlloc = nullptr;
+		m_ImageInfo.ImageView = nullptr;
+		m_ImageInfo.Sampler = nullptr;
+	}
+
+	void Image::Resize(uint32_t width, uint32_t height)
+	{
+		Release();
+
+		m_Specification.Width = width;
+		m_Specification.Height = height;
+
+		Init();
 	}
 
 	void Image::Init()
