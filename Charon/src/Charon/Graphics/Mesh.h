@@ -44,7 +44,7 @@ namespace Charon {
 
 		std::vector<SubMesh> m_SubMeshes;
 		std::vector<Vertex> m_Vertices;
-		std::vector<uint16_t> m_Indices;
+		std::vector<uint32_t> m_Indices;
 
 		Ref<VertexBuffer> m_VertexBuffer;
 		Ref<IndexBuffer> m_IndexBuffer;

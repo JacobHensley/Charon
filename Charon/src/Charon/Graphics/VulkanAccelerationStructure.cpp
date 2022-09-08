@@ -183,8 +183,8 @@ namespace Charon {
 		trianglesData.vertexStride = sizeof(Vertex);
 		trianglesData.maxVertex = submesh.VertexCount;
 		trianglesData.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
-		trianglesData.indexData.deviceAddress = VulkanAllocator::GetVulkanDeviceAddress(mesh->GetIndexBuffer()->GetBuffer()) + submesh.IndexOffset * sizeof(uint16_t); // Modified
-		trianglesData.indexType = VK_INDEX_TYPE_UINT16;
+		trianglesData.indexData.deviceAddress = VulkanAllocator::GetVulkanDeviceAddress(mesh->GetIndexBuffer()->GetBuffer()) + submesh.IndexOffset * sizeof(uint32_t); // Modified
+		trianglesData.indexType = VK_INDEX_TYPE_UINT32;
 
 		VkAccelerationStructureGeometryDataKHR geometryData{};
 		geometryData.triangles = trianglesData;

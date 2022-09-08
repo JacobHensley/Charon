@@ -34,7 +34,7 @@ namespace Charon {
 		}
 
 		m_VertexBuffer = CreateRef<VertexBuffer>(m_Vertices.data(), sizeof(Vertex) * m_Vertices.size());
-		m_IndexBuffer = CreateRef<IndexBuffer>(m_Indices.data(), sizeof(uint16_t) * m_Indices.size(), m_Indices.size());
+		m_IndexBuffer = CreateRef<IndexBuffer>(m_Indices.data(), sizeof(uint32_t) * m_Indices.size(), m_Indices.size());
 	}
 
 	void Mesh::LoadData()
@@ -129,6 +129,7 @@ namespace Charon {
 					const tinygltf::Accessor& accessor = m_Model.accessors[primitive.indices];
 					const tinygltf::BufferView& bufferView = m_Model.bufferViews[accessor.bufferView];
 					const tinygltf::Buffer& buffer = m_Model.buffers[bufferView.buffer];
+					// TODO: Ask about if this is limiting index precision
 					const uint16_t* indices = reinterpret_cast<const uint16_t*>(&buffer.data[bufferView.byteOffset + accessor.byteOffset]);
 
 					subMeshIndexCount = accessor.count;

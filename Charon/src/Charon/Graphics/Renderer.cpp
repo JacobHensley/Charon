@@ -277,7 +277,7 @@ namespace Charon {
 			VkDeviceSize offset = 0;
 			VkBuffer vertexBuffer = command.VertexBuffer->GetBuffer();
 			vkCmdBindVertexBuffers(m_ActiveCommandBuffer, 0, 1, &vertexBuffer, &offset);
-			vkCmdBindIndexBuffer(m_ActiveCommandBuffer, command.IndexBuffer->GetBuffer(), 0, VK_INDEX_TYPE_UINT16);
+			vkCmdBindIndexBuffer(m_ActiveCommandBuffer, command.IndexBuffer->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 			vkCmdPushConstants(m_ActiveCommandBuffer, m_Pipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &command.Transform);
 			vkCmdBindDescriptorSets(m_ActiveCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, m_DescriptorSets.size(), m_DescriptorSets.data(), 0, nullptr);
