@@ -26,11 +26,22 @@ namespace Charon {
 
 		void RayTracingPass();
 	private:
+		bool CreateRayTracingPipeline();
+	private:
 		Ref<Camera> m_Camera;
 		Ref<Scene> m_Scene;
 		SceneObject m_SceneObject;
 		AssetHandle m_MeshHandle;
 		Ref<ViewportPanel> m_ViewportPanel;
+
+		struct SceneBuffer
+		{
+			glm::vec3 DirectionalLight_Direction;
+			float Padding0;
+			glm::vec3 PointLight_Position;
+			float Padding1;
+		} m_SceneBuffer;
+		Ref<UniformBuffer> m_SceneUB;
 
 		uint32_t m_RTWidth = 0, m_RTHeight = 0;
 

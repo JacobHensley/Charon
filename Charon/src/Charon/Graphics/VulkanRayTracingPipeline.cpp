@@ -63,11 +63,14 @@ namespace Charon {
 
 	VulkanRayTracingPipeline::~VulkanRayTracingPipeline()
 	{
-		VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
-
-		vkDestroyPipeline(device, m_Pipeline, nullptr);
-		if (m_OwnLayout)
-			vkDestroyPipelineLayout(device, m_PipelineLayout, nullptr);
+		Ref<Renderer> renderer = Application::GetApp().GetRenderer();
+		renderer->SubmitResourceFree([pipeline = m_Pipeline, ownLayout = m_OwnLayout, pipelineLayout = m_PipelineLayout]()
+		{
+			VkDevice device = Application::GetApp().GetVulkanDevice()->GetLogicalDevice();
+			vkDestroyPipeline(device, pipeline, nullptr);
+			if (ownLayout)
+				vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+		});
 	}
 
 	void VulkanRayTracingPipeline::Init()
@@ -77,13 +80,14 @@ namespace Charon {
 		// TODO: retrieve caps
 		const uint32_t MaxStorageBufferDescriptorCount = 2048;
 
-		std::array<VkDescriptorSetLayoutBinding, 6> layoutBindings = {
+		std::array<VkDescriptorSetLayoutBinding, 7> layoutBindings = {
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 1),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 2),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 3, MaxStorageBufferDescriptorCount),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 4, MaxStorageBufferDescriptorCount),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 5),
+			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 6),
 		};
 
 		// TODO: flags (for bindless)
@@ -95,7 +99,8 @@ namespace Charon {
 			0, // Binding 2: Camera Uniform Buffer
 			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT, // Binding 3: Vertex Buffers
 			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT, // Binding 4: Index Buffers
-			0 // Binding 5: Submesh Data
+			0, // Binding 5: Submesh Data
+			0  // Binding 6: Scene Buffer
 		};
 
 		VkDescriptorSetLayoutBindingFlagsCreateInfo descriptorSetLayoutBindingsCreateInfo{};

@@ -85,7 +85,6 @@ namespace Charon {
 		Shader(std::string_view path, std::string_view entryPoint);
 		Shader(std::string_view path, std::string_view entryPoint, const std::vector<std::wstring>& defines);
 		~Shader();
-
 	public:
 		inline const std::vector<UniformBufferDescription>& GetUniformBufferDescriptions() { return m_UniformBufferDescriptions; }
 		inline const std::vector<StorageBufferDescription>& GetStorageBufferDescriptions() { return m_StorageBufferDescriptions; }
@@ -99,6 +98,8 @@ namespace Charon {
 		static uint32_t GetTypeSize(ShaderUniformType type);
 
 		const std::vector<PushConstantRange>& GetPushConstantRanges() const { return m_PushConstantBufferRanges; }
+
+		bool CompiledSuccessfully() const { return m_CompilationStatus; }
 	private:
 		void Init();
 		bool CompileGLSLShaders(const std::unordered_map<ShaderStage, std::string>& shaderSrc);
@@ -112,6 +113,8 @@ namespace Charon {
 		const std::string m_Path;
 		const std::string m_EntryPoint;
 		std::unordered_map<ShaderStage, std::string> m_ShaderSrc;
+
+		bool m_CompilationStatus = false;
 
 		const std::vector<std::wstring>& m_Defines;
 

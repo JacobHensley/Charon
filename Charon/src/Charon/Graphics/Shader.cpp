@@ -201,7 +201,8 @@ namespace Charon {
 			result = CompileGLSLShaders(m_ShaderSrc);
 		}
 
-		CR_ASSERT(result, "Failed to initialize shader")
+		CR_ASSERT(result, "Failed to initialize shader");
+		m_CompilationStatus = result;
 
 		CreateDescriptorSetLayouts();
 	}

@@ -8,6 +8,8 @@
 #include "Charon/ImGui/imgui_impl_vulkan_with_textures.h"
 #include "imgui/imgui.h"
 
+#include <algorithm>
+
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace Charon {
@@ -65,7 +67,6 @@ namespace Charon {
 		m_SceneObject = m_Scene->CreateObject("Test Object");
 		m_MeshHandle = AssetManager::Load<Mesh>("assets/models/Cornell.gltf");
 
-
 		{
 			AccelerationStructureSpecification spec;
 			spec.Mesh = AssetManager::Get<Mesh>(m_MeshHandle);
@@ -73,14 +74,9 @@ namespace Charon {
 			m_AccelerationStructure = CreateRef<VulkanAccelerationStructure>(spec);
 		}
 
+		if (!CreateRayTracingPipeline())
+			CR_LOG_CRITICAL("Failed to create Ray Tracing pipeline!");
 
-		{
-			RayTracingPipelineSpecification spec;
-			spec.RayGenShader = CreateRef<Shader>("assets/shaders/RayTracing/RayGen.glsl");
-			spec.MissShader = CreateRef<Shader>("assets/shaders/RayTracing/Miss.glsl");
-			spec.ClosestHitShader = CreateRef<Shader>("assets/shaders/RayTracing/ClosestHit.glsl");
-			m_RayTracingPipeline = CreateRef<VulkanRayTracingPipeline>(spec);
-		}
 		{
 			ImageSpecification spec;
 			spec.Format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -90,6 +86,10 @@ namespace Charon {
 			m_Image = CreateRef<Image>(spec);
 		}
 
+		m_SceneBuffer.DirectionalLight_Direction = glm::normalize(glm::vec3(-1));
+		m_SceneBuffer.PointLight_Position = glm::vec3(0);
+		m_SceneUB = CreateRef<UniformBuffer>(&m_SceneBuffer, sizeof(SceneBuffer));
+
 		m_SceneObject.AddComponent<MeshComponent>(m_MeshHandle);
 	}
 
@@ -97,6 +97,8 @@ namespace Charon {
 	{
 		m_Camera->Update();
 		m_Scene->Update();
+
+		m_SceneUB->UpdateBuffer(&m_SceneBuffer);
 	}
 
 	void RayTracingLayer::RayTracingPass()
@@ -159,6 +161,7 @@ namespace Charon {
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3, vertexBufferInfos.data(), (uint32_t)vertexBufferInfos.size()),
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4, indexBufferInfos.data(), (uint32_t)indexBufferInfos.size()),
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5, &submeshDataSB->getDescriptorBufferInfo()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 6, &m_SceneUB->getDescriptorBufferInfo()),
 		};
 
 		vkUpdateDescriptorSets(device->GetLogicalDevice(), rayTracingWriteDescriptors.size(), rayTracingWriteDescriptors.data(), 0, NULL);
@@ -181,6 +184,25 @@ namespace Charon {
 
 	}
 
+	bool RayTracingLayer::CreateRayTracingPipeline()
+	{
+		RayTracingPipelineSpecification spec;
+		spec.RayGenShader = CreateRef<Shader>("assets/shaders/RayTracing/RayGen.glsl");
+		if (!spec.RayGenShader->CompiledSuccessfully())
+			return false;
+
+		spec.MissShader = CreateRef<Shader>("assets/shaders/RayTracing/Miss.glsl");
+		if (!spec.MissShader->CompiledSuccessfully())
+			return false;
+
+		spec.ClosestHitShader = CreateRef<Shader>("assets/shaders/RayTracing/ClosestHit.glsl");
+		if (!spec.ClosestHitShader->CompiledSuccessfully())
+			return false;
+
+		m_RayTracingPipeline = CreateRef<VulkanRayTracingPipeline>(spec);
+		return true;
+	}
+
 	void RayTracingLayer::OnRender()
 	{
 		RayTracingPass();
@@ -199,6 +221,19 @@ namespace Charon {
 
 		ImTextureID imTex = ImGui_ImplVulkan_AddTexture(descriptorInfo.sampler, descriptorInfo.imageView, descriptorInfo.imageLayout);
 		ImGui::Image(imTex, { (float)m_RTWidth, (float)m_RTHeight}, ImVec2(0, 1), ImVec2(1, 0));
+		ImGui::End();
+
+		if (ImGui::Begin("Settings"))
+		{
+			if (ImGui::Button("Reload Pipeline"))
+			{
+				if (!CreateRayTracingPipeline())
+					CR_LOG_CRITICAL("Failed to create Ray Tracing pipeline!");
+			}
+
+			ImGui::DragFloat3("Directional Light", glm::value_ptr(m_SceneBuffer.DirectionalLight_Direction), 0.01f, -1.0f, 1.0f);
+			ImGui::DragFloat3("Point Light", glm::value_ptr(m_SceneBuffer.PointLight_Position), 0.01f);
+		}
 		ImGui::End();
 
 #if 0
