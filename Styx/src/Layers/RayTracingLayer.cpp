@@ -84,10 +84,19 @@ namespace Charon {
 			spec.Width = 1280;
 			spec.Height = 720;
 			m_Image = CreateRef<Image>(spec);
+		} 
+		{
+			ImageSpecification spec;
+			spec.Format = VK_FORMAT_R32G32B32A32_SFLOAT;
+			spec.Usage = VK_IMAGE_USAGE_STORAGE_BIT;
+			spec.Width = 1280;
+			spec.Height = 720;
+			m_AccumulationImage = CreateRef<Image>(spec);
 		}
 
-		m_SceneBuffer.DirectionalLight_Direction = glm::normalize(glm::vec3(-1));
-		m_SceneBuffer.PointLight_Position = glm::vec3(0);
+		m_SceneBuffer.DirectionalLight_Direction = glm::normalize(glm::vec3(-0.66f, -0.577f, -0.577f));
+		m_SceneBuffer.PointLight_Position = glm::vec3(-5);
+		m_SceneBuffer.FrameIndex = 1;
 		m_SceneUB = CreateRef<UniformBuffer>(&m_SceneBuffer, sizeof(SceneBuffer));
 
 		m_SceneObject.AddComponent<MeshComponent>(m_MeshHandle);
@@ -98,6 +107,8 @@ namespace Charon {
 		m_Camera->Update();
 		m_Scene->Update();
 
+		if (!m_Accumulate)
+			m_SceneBuffer.FrameIndex = 1;
 		m_SceneUB->UpdateBuffer(&m_SceneBuffer);
 	}
 
@@ -110,6 +121,7 @@ namespace Charon {
 		if (m_Image->GetSpecification().Width != m_RTWidth || m_Image->GetSpecification().Height != m_RTHeight)
 		{
 			m_Image->Resize(m_RTWidth, m_RTHeight);
+			m_AccumulationImage->Resize(m_RTWidth, m_RTHeight);
 			m_Camera->SetProjectionMatrix(glm::perspectiveFov(glm::radians(45.0f), (float)m_RTWidth, (float)m_RTHeight, 0.1f, 100.0f));
 		}
 
@@ -157,11 +169,12 @@ namespace Charon {
 		std::vector<VkWriteDescriptorSet> rayTracingWriteDescriptors = {
 			accelerationStructureWrite,
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &m_Image->GetDescriptorImageInfo()),
-			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &uniformBuffer->getDescriptorBufferInfo()),
-			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3, vertexBufferInfos.data(), (uint32_t)vertexBufferInfos.size()),
-			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4, indexBufferInfos.data(), (uint32_t)indexBufferInfos.size()),
-			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5, &submeshDataSB->getDescriptorBufferInfo()),
-			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 6, &m_SceneUB->getDescriptorBufferInfo()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2, &m_AccumulationImage->GetDescriptorImageInfo()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3, &uniformBuffer->getDescriptorBufferInfo()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4, vertexBufferInfos.data(), (uint32_t)vertexBufferInfos.size()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5, indexBufferInfos.data(), (uint32_t)indexBufferInfos.size()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6, &submeshDataSB->getDescriptorBufferInfo()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 7, &m_SceneUB->getDescriptorBufferInfo()),
 		};
 
 		vkUpdateDescriptorSets(device->GetLogicalDevice(), rayTracingWriteDescriptors.size(), rayTracingWriteDescriptors.data(), 0, NULL);
@@ -182,6 +195,7 @@ namespace Charon {
 			m_RTHeight,
 			1);
 
+		m_SceneBuffer.FrameIndex++;
 	}
 
 	bool RayTracingLayer::CreateRayTracingPipeline()
@@ -230,6 +244,13 @@ namespace Charon {
 				if (!CreateRayTracingPipeline())
 					CR_LOG_CRITICAL("Failed to create Ray Tracing pipeline!");
 			}
+
+			if (ImGui::Button("Render"))
+			{
+				m_SceneBuffer.FrameIndex = 1;
+			}
+
+			ImGui::Checkbox("Accumulate", &m_Accumulate);
 
 			ImGui::DragFloat3("Directional Light", glm::value_ptr(m_SceneBuffer.DirectionalLight_Direction), 0.01f, -1.0f, 1.0f);
 			ImGui::DragFloat3("Point Light", glm::value_ptr(m_SceneBuffer.PointLight_Position), 0.01f);

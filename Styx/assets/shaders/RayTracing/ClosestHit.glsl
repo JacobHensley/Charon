@@ -16,9 +16,9 @@ layout(location = 0) rayPayloadInEXT Payload g_RayPayload;
 
 hitAttributeEXT vec2 g_HitAttributes;
 
-layout(std430, binding = 3) buffer Vertices { float Data[]; } m_VertexBuffers[];
-layout(std430, binding = 4) buffer Indices { uint Data[]; } m_IndexBuffers[];
-layout(std430, binding = 5) buffer SubmeshData { uint Data[]; } m_SubmeshData;
+layout(std430, binding = 4) buffer Vertices { float Data[]; } m_VertexBuffers[];
+layout(std430, binding = 5) buffer Indices { uint Data[]; } m_IndexBuffers[];
+layout(std430, binding = 6) buffer SubmeshData { uint Data[]; } m_SubmeshData;
 
 struct Vertex
 {
@@ -100,14 +100,14 @@ void main()
 	vec3 worldNormal = normalize(mat3(gl_ObjectToWorldEXT) * vertex.Normal);
 
 	g_RayPayload.Distance = gl_RayTmaxEXT;
-	g_RayPayload.Albedo = vertex.Normal * 0.5 + 0.5;
+	g_RayPayload.Albedo = vec3(0.8);//vertex.Normal * 0.5 + 0.5;
 	g_RayPayload.Roughness = 0.0;
 	g_RayPayload.WorldPosition = worldPosition;
 	g_RayPayload.WorldNormal = worldNormal;
 
-	if (gl_InstanceCustomIndexEXT == 4) // Sphere
+	if (gl_InstanceCustomIndexEXT == 2) // Sphere
 	{
-		g_RayPayload.Albedo = vec3(0.5);
+		g_RayPayload.Albedo = vec3(0.63, 0.065, 0.05);
 		g_RayPayload.Roughness = 0.0;
 	}
 

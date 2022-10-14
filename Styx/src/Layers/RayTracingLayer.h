@@ -39,15 +39,17 @@ namespace Charon {
 			glm::vec3 DirectionalLight_Direction;
 			float Padding0;
 			glm::vec3 PointLight_Position;
-			float Padding1;
+			uint32_t FrameIndex;
 		} m_SceneBuffer;
 		Ref<UniformBuffer> m_SceneUB;
 
 		uint32_t m_RTWidth = 0, m_RTHeight = 0;
 
+		bool m_Accumulate = true;
+
 		Ref<VulkanAccelerationStructure> m_AccelerationStructure;
 		Ref<VulkanRayTracingPipeline> m_RayTracingPipeline;
-		Ref<Image> m_Image;
+		Ref<Image> m_Image, m_AccumulationImage;
 		std::vector<VkWriteDescriptorSet> m_RayTracingWriteDescriptors;
 	};
 
