@@ -71,7 +71,7 @@ float GetRandomNumber(inout uint seed)
 
 vec3 GetRandomCosineDirectionOnHemisphere(vec3 direction, inout uint seed)
 {
-	float a = GetRandomNumber(seed) * (PI * 2.0);
+	float a = GetRandomNumber(seed) * (PI * 2.0f);
 	float z = GetRandomNumber(seed) * 2.0 - 1.0;
 	float r = sqrt(1.0 - z * z);
 
@@ -129,6 +129,16 @@ vec3 DiffuseLighting(Payload payload)
 	return directionalLight + pointLight;
 }
 
+vec3 RandomPointInUnitCircle(inout uint seed)
+{
+	while (true) 
+	{
+		vec3 p = vec3(GetRandomNumber(seed) * 2.0 - 1.0, GetRandomNumber(seed) * 2.0 - 1.0, GetRandomNumber(seed) * 2.0 - 1.0);
+		if ((p.length() * p.length()) < 1) continue;
+		return p;
+	}
+}
+
 vec3 TracePath(RayDesc ray, uint seed)
 {
 	uint flags = gl_RayFlagsOpaqueEXT;
@@ -175,10 +185,6 @@ vec3 TracePath(RayDesc ray, uint seed)
 
 		vec3 diffuse = DiffuseLighting(payload); // Do direct lighting here
 		color += diffuse * throughput;
-		if (payload.Roughness == 1.0)
-		{
-			break;
-		}
 
 		seed++;
 
@@ -189,9 +195,15 @@ vec3 TracePath(RayDesc ray, uint seed)
 		ray.Origin = payload.WorldPosition;
 		ray.Origin +=  payload.WorldNormal * 0.0001 - ray.Direction * 0.0001;
 
-		ray.Direction = GetRandomCosineDirectionOnHemisphere(payload.WorldNormal, seed);
+		if (payload.Roughness == 0.0f)
+		{
 
-		//ray.Direction = reflect(ray.Direction, payload.WorldNormal);
+			ray.Direction = reflect(ray.Direction, payload.WorldNormal) + RandomPointInUnitCircle(seed) * 0.001f;
+		}
+		else
+		{
+			ray.Direction = GetRandomCosineDirectionOnHemisphere(payload.WorldNormal, seed);
+		}
 
 		float maxAlbedo = 0.9;
 		throughput *= min(payload.Albedo, vec3(maxAlbedo));
@@ -209,8 +221,6 @@ void main()
 	uint frameNumber = u_Scene.FrameIndex;
 	uint seed = gl_LaunchIDEXT.x + gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x;
 	seed *= frameNumber;
-
-
 
 	vec3 color = vec3(0.0);
 

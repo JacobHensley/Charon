@@ -101,7 +101,7 @@ void main()
 
 	g_RayPayload.Distance = gl_RayTmaxEXT;
 	g_RayPayload.Albedo = vec3(0.8);//vertex.Normal * 0.5 + 0.5;
-	g_RayPayload.Roughness = 0.0;
+	g_RayPayload.Roughness = 1.0;
 	g_RayPayload.WorldPosition = worldPosition;
 	g_RayPayload.WorldNormal = worldNormal;
 
