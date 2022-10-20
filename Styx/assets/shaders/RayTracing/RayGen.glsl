@@ -120,13 +120,25 @@ vec3 PointLight(Payload payload)
 	return payload.Albedo * intensity * visibility;
 }
 
-vec3 DiffuseLighting(Payload payload)
+vec3 DiffuseLighting(Payload payload, uint seed)
 {
 	vec3 directionalLight = DirectionalLight(payload);
 	vec3 pointLight = PointLight(payload);
 
+	vec3 lightPos = u_Scene.PointLight_Position;
+
+	float areaLightSize = 5.01;
+	vec2 random = vec2(GetRandomNumber(seed), GetRandomNumber(seed));
+	vec3 randomLightPos = lightPos + areaLightSize * vec3(0.0, random);
+
+	vec3 lightDir = normalize(randomLightPos - payload.WorldPosition);
+	float d = length(randomLightPos - payload.WorldPosition);
+
+	float visibility = LightVisibility(payload, lightDir, d);
+	return payload.Albedo * visibility * 0.5;
+
 	//return pointLight;
-	return directionalLight + pointLight;
+	//return directionalLight + pointLight;
 }
 
 vec3 RandomPointInUnitCircle(inout uint seed)
@@ -183,7 +195,7 @@ vec3 TracePath(RayDesc ray, uint seed)
 			break;
 		}
 
-		vec3 diffuse = DiffuseLighting(payload); // Do direct lighting here
+		vec3 diffuse = DiffuseLighting(payload, seed); // Do direct lighting here
 		color += diffuse * throughput;
 
 		seed++;
