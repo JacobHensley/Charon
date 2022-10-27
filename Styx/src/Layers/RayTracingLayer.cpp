@@ -65,7 +65,7 @@ namespace Charon {
 		m_ViewportPanel = CreateRef<ViewportPanel>();
 
 		m_SceneObject = m_Scene->CreateObject("Test Object");
-		m_MeshHandle = AssetManager::Load<Mesh>("assets/models/Cornell.gltf");
+		m_MeshHandle = AssetManager::Load<Mesh>("assets/models/CornellWithSphere.gltf");
 
 		{
 			AccelerationStructureSpecification spec;

@@ -7,8 +7,10 @@ struct Payload
 	float Distance;
 	vec3 Albedo;
 	float Roughness;
+	float Metallic;
 	vec3 WorldPosition;
 	vec3 WorldNormal;
+	vec3 View;
 };
 
 layout(location = 0) rayPayloadInEXT Payload g_RayPayload;

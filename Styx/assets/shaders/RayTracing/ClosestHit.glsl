@@ -8,8 +8,10 @@ struct Payload
 	float Distance;
 	vec3 Albedo;
 	float Roughness;
+	float Metallic;
 	vec3 WorldPosition;
 	vec3 WorldNormal;
+	vec3 View;
 };
 
 layout(location = 0) rayPayloadInEXT Payload g_RayPayload;
@@ -24,6 +26,7 @@ struct Vertex
 {
 	vec3 Position;
 	vec3 Normal;
+	vec3 Binormal;
 	vec3 Tangent;
 	vec2 TextureCoords;
 };
@@ -102,13 +105,21 @@ void main()
 	g_RayPayload.Distance = gl_RayTmaxEXT;
 	g_RayPayload.Albedo = vec3(0.8);//vertex.Normal * 0.5 + 0.5;
 	g_RayPayload.Roughness = 1.0;
+	g_RayPayload.Metallic = 0.0;
 	g_RayPayload.WorldPosition = worldPosition;
 	g_RayPayload.WorldNormal = worldNormal;
+	g_RayPayload.View = normalize(-gl_WorldRayDirectionEXT);
 
-	if (gl_InstanceCustomIndexEXT == 2) // Sphere
+	if (gl_InstanceCustomIndexEXT == 2) // Wall
 	{
 		g_RayPayload.Albedo = vec3(0.63, 0.065, 0.05);
 		g_RayPayload.Roughness = 0.0;
 	}
-
+	else if (gl_InstanceCustomIndexEXT == 3) // Sphere
+	{
+		g_RayPayload.Albedo = vec3(0.5);
+		g_RayPayload.Roughness = 0.0;
+		g_RayPayload.Metallic = 1.0;
+	}
+	 
 }

@@ -36,8 +36,10 @@ struct Payload
 	float Distance;
 	vec3 Albedo;
 	float Roughness;
+	float Metallic;
 	vec3 WorldPosition;
 	vec3 WorldNormal;
+	vec3 View;
 };
 
 layout(location = 0) rayPayloadEXT Payload g_RayPayload;
@@ -135,10 +137,100 @@ vec3 DiffuseLighting(Payload payload, uint seed)
 	float d = length(randomLightPos - payload.WorldPosition);
 
 	float visibility = LightVisibility(payload, lightDir, d);
+
+	return directionalLight;
+
 	return payload.Albedo * visibility * 0.5;
 
 	//return pointLight;
 	//return directionalLight + pointLight;
+}
+
+vec3 FresnelSchlickRoughness(vec3 F0, float cosTheta, float roughness)
+{
+	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+// GGX/Towbridge-Reitz normal distribution function.
+// Uses Disney's reparametrization of alpha = roughness^2
+float NdfGGX(float cosLh, float roughness)
+{
+	float alpha = roughness * roughness;
+	float alphaSq = alpha * alpha;
+
+	float denom = (cosLh * cosLh) * (alphaSq - 1.0) + 1.0;
+	return alphaSq / (PI * denom * denom);
+}
+
+// Single term for separable Schlick-GGX below.
+float GaSchlickG1(float cosTheta, float k)
+{
+	return cosTheta / (cosTheta * (1.0 - k) + k);
+}
+
+// Schlick-GGX approximation of geometric attenuation function using Smith's method.
+float GaSchlickGGX(float cosLi, float NdotV, float roughness)
+{
+	float r = roughness + 1.0;
+	float k = (r * r) / 8.0; // Epic suggests using this roughness remapping for analytic lights.
+	return GaSchlickG1(cosLi, k) * GaSchlickG1(NdotV, k);
+}
+
+// Returns next ray direction
+vec3 SampleMicrofacetBRDF(RayDesc ray, Payload payload, inout uint seed, out vec3 throughput)
+{
+	vec3 F0 = mix(vec3(0.04), payload.Albedo, payload.Metallic);
+
+	bool specular = true;//GetRandomNumber(seed) > 0.5;
+	if (specular)
+	{
+		float r2 = payload.Roughness * payload.Roughness;
+		float theta = acos(sqrt((1.0 - GetRandomNumber(seed)) / (1.0 + (r2 * r2 - 1.0) * GetRandomNumber(seed))));
+		float phi = 2.0 * PI * GetRandomNumber(seed);
+
+		vec3 dir = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+		vec3 H = payload.WorldNormal + dir;
+		vec3 L = reflect(-payload.View, H);
+
+		float cosLh = clamp(dot(payload.WorldNormal, H), 0.0, 1.0);
+		float cosLi = clamp(dot(payload.WorldNormal, L), 0.0, 1.0);
+		float NdotV = clamp(dot(payload.WorldNormal, payload.View), 0.0, 1.0);
+		float VdotH = clamp(dot(payload.View, H), 0.0, 1.0);
+
+		payload.Roughness = max(0.05, payload.Roughness);
+
+		vec3 F = FresnelSchlickRoughness(F0, max(0.0, clamp(dot(H, payload.View), 0.0, 1.0)), payload.Roughness);
+		float D = NdfGGX(cosLh, payload.Roughness);
+		float G = GaSchlickGGX(cosLi, NdotV, payload.Roughness);
+		throughput = (F * D * G) / max(0.001, 4.0 * cosLi * NdotV);
+		//throughput = (F * D * VdotH) / max(0.0001, cosLi * NdotV);
+
+		//if (any(greaterThan(throughput, vec3(1.0))))
+		//	throughput = vec3(1, 0, 1);
+
+		//throughput = min(throughput, vec3(0.9));
+		throughput = vec3(payload.Roughness);
+		return L;
+	}
+
+
+	// importance sampling (diffuse)
+	float theta = asin(sqrt(GetRandomNumber(seed)));
+	float phi = 2.0 * PI * GetRandomNumber(seed);
+
+	vec3 diffuseDir = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+
+	// TODO: properly do this for normal maps
+	vec3 L = payload.WorldNormal + diffuseDir;
+	vec3 H = normalize(payload.View + L);
+	
+	vec3 F = FresnelSchlickRoughness(F0, max(0.0, clamp(dot(H, payload.View), 0.0, 1.0)), payload.Roughness);
+
+	vec3 kd = (1.0 - F) * (1.0 - payload.Metallic);
+	throughput = kd * payload.Albedo;
+	throughput *= 2.0;
+
+	return L;
 }
 
 vec3 RandomPointInUnitCircle(inout uint seed)
@@ -157,11 +249,12 @@ vec3 TracePath(RayDesc ray, uint seed)
 	uint mask = 0xff;
 
 	vec3 color = vec3(0.0);
-	vec3 throughput = vec3(1.0);
-	const int MAX_BOUNCES = 20;
+	const int MAX_BOUNCES = 10;
 
 	float numPaths = 0.0f;
 	bool twoSided = false;
+
+	vec3 contribution = vec3(1.0);
 
 	for (int bounceIndex = 0; bounceIndex < MAX_BOUNCES; bounceIndex++)
 	{
@@ -184,33 +277,37 @@ vec3 TracePath(RayDesc ray, uint seed)
 				payload.WorldNormal = -payload.WorldNormal;
 		}
 
-		numPaths += ((throughput.r + throughput.g + throughput.b) / 3);
+//		numPaths += ((throughput.r + throughput.g + throughput.b) / 3);
 
 		// Miss
 		if (payload.Distance == -1.0)
 		{
 			vec3 clearColor = vec3(0.4, 0.6, 0.8);
 			clearColor = vec3(0.0);
-			color += clearColor * throughput;
+			color += clearColor * contribution;
 			break;
 		}
 
-		vec3 diffuse = DiffuseLighting(payload, seed); // Do direct lighting here
-		color += diffuse * throughput;
-
 		seed++;
+
+#define NEW 1
+#if NEW
+		vec3 throughput = vec3(0.0);
+		vec3 directLight = DiffuseLighting(payload, seed); // Do direct lighting here
+		ray.Direction = SampleMicrofacetBRDF(ray, payload, seed, throughput);
+		color += directLight * contribution;
+		contribution *= throughput;
+
 
 		//numPaths += 1.0;
 		// color += payload.WorldNormal;
-		
-		// Cast reflection ray
-		ray.Origin = payload.WorldPosition;
-		ray.Origin +=  payload.WorldNormal * 0.0001 - ray.Direction * 0.0001;
+#else
+		vec3 diffuse = DiffuseLighting(payload, seed); // Do direct lighting here
+		color += diffuse * contribution;
 
-		if (payload.Roughness == 0.0f)
+		if (false && payload.Roughness == 0.0f)
 		{
-
-			ray.Direction = reflect(ray.Direction, payload.WorldNormal) + RandomPointInUnitCircle(seed) * 0.001f;
+			ray.Direction = reflect(ray.Direction, payload.WorldNormal) + RandomPointInUnitCircle(seed) * 0.05f;
 		}
 		else
 		{
@@ -218,11 +315,16 @@ vec3 TracePath(RayDesc ray, uint seed)
 		}
 
 		float maxAlbedo = 0.9;
-		throughput *= min(payload.Albedo, vec3(maxAlbedo));
+		contribution *= min(payload.Albedo, vec3(maxAlbedo));
 
 		float minEnergy = 0.005;
-		if (throughput.r < minEnergy && throughput.g < minEnergy && throughput.b < minEnergy)
+		if (contribution.r < minEnergy && contribution.g < minEnergy && contribution.b < minEnergy)
 			break;
+#endif
+
+		// Cast reflection ray
+		ray.Origin = payload.WorldPosition;
+		ray.Origin += payload.WorldNormal * 0.0001 - ray.Direction * 0.0001;
 	}
 	
 	return color;
@@ -257,7 +359,6 @@ void main()
 		desc.Direction = normalize(direction.xyz); //
 		desc.TMin = 0.0;
 		desc.TMax = 1e27f;
-
 
 		color += TracePath(desc, seed);
 	}
