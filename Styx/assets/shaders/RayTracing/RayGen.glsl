@@ -39,6 +39,8 @@ struct Payload
 	float Metallic;
 	vec3 WorldPosition;
 	vec3 WorldNormal;
+	mat3 WorldNormalMatrix;
+	vec3 Tangent;
 	vec3 View;
 };
 
@@ -181,7 +183,9 @@ vec3 SampleMicrofacetBRDF(RayDesc ray, Payload payload, inout uint seed, out vec
 {
 	vec3 F0 = mix(vec3(0.04), payload.Albedo, payload.Metallic);
 
-	bool specular = true;//GetRandomNumber(seed) > 0.5;
+	payload.Roughness = max(0.05, payload.Roughness);
+
+	bool specular = GetRandomNumber(seed) > 0.5;
 	if (specular)
 	{
 		float r2 = payload.Roughness * payload.Roughness;
@@ -189,7 +193,10 @@ vec3 SampleMicrofacetBRDF(RayDesc ray, Payload payload, inout uint seed, out vec
 		float phi = 2.0 * PI * GetRandomNumber(seed);
 
 		vec3 dir = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
-		vec3 H = payload.WorldNormal + dir;
+
+		vec3 H = payload.WorldNormalMatrix * dir;
+		H = payload.WorldNormal + dir * r2;
+		H = normalize(H);
 		vec3 L = reflect(-payload.View, H);
 
 		float cosLh = clamp(dot(payload.WorldNormal, H), 0.0, 1.0);
@@ -197,19 +204,21 @@ vec3 SampleMicrofacetBRDF(RayDesc ray, Payload payload, inout uint seed, out vec
 		float NdotV = clamp(dot(payload.WorldNormal, payload.View), 0.0, 1.0);
 		float VdotH = clamp(dot(payload.View, H), 0.0, 1.0);
 
-		payload.Roughness = max(0.05, payload.Roughness);
 
 		vec3 F = FresnelSchlickRoughness(F0, max(0.0, clamp(dot(H, payload.View), 0.0, 1.0)), payload.Roughness);
 		float D = NdfGGX(cosLh, payload.Roughness);
 		float G = GaSchlickGGX(cosLi, NdotV, payload.Roughness);
-		throughput = (F * D * G) / max(0.001, 4.0 * cosLi * NdotV);
-		//throughput = (F * D * VdotH) / max(0.0001, cosLi * NdotV);
+		//throughput = (F * D * G) / max(0.001, 4.0 * cosLi * NdotV);
+		throughput = F * G * VdotH / max(0.0001, cosLi * NdotV);
+
+		throughput *= 2.0;
+
+		//throughput = vec3(NdotV);
 
 		//if (any(greaterThan(throughput, vec3(1.0))))
 		//	throughput = vec3(1, 0, 1);
 
 		//throughput = min(throughput, vec3(0.9));
-		throughput = vec3(payload.Roughness);
 		return L;
 	}
 
@@ -221,7 +230,7 @@ vec3 SampleMicrofacetBRDF(RayDesc ray, Payload payload, inout uint seed, out vec
 	vec3 diffuseDir = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
 
 	// TODO: properly do this for normal maps
-	vec3 L = payload.WorldNormal + diffuseDir;
+	vec3 L = normalize(payload.WorldNormal + diffuseDir);
 	vec3 H = normalize(payload.View + L);
 	
 	vec3 F = FresnelSchlickRoughness(F0, max(0.0, clamp(dot(H, payload.View), 0.0, 1.0)), payload.Roughness);
@@ -284,7 +293,9 @@ vec3 TracePath(RayDesc ray, uint seed)
 		{
 			vec3 clearColor = vec3(0.4, 0.6, 0.8);
 			clearColor = vec3(0.0);
-			color += clearColor * contribution;
+			vec3 ambientLight = vec3(0.8, 0.9, 1.0);
+
+			color += ambientLight * contribution;
 			break;
 		}
 
@@ -295,9 +306,10 @@ vec3 TracePath(RayDesc ray, uint seed)
 		vec3 throughput = vec3(0.0);
 		vec3 directLight = DiffuseLighting(payload, seed); // Do direct lighting here
 		ray.Direction = SampleMicrofacetBRDF(ray, payload, seed, throughput);
-		color += directLight * contribution;
-		contribution *= throughput;
+		//color += directLight * contribution;
 
+		contribution *= throughput;
+		//color = payload.Tangent;
 
 		//numPaths += 1.0;
 		// color += payload.WorldNormal;

@@ -105,7 +105,7 @@ namespace Charon {
 						m_Vertices[subMeshVertexOffset + j].Tangent.x = tangents[j * 4 + 0];
 						m_Vertices[subMeshVertexOffset + j].Tangent.y = tangents[j * 4 + 1];
 						m_Vertices[subMeshVertexOffset + j].Tangent.z = tangents[j * 4 + 2];
-						//	m_Vertices[subMeshVertexOffset+ j].Tangent.w = tangents[j * 4 + 3];
+						m_Vertices[subMeshVertexOffset + j].Tangent.w = tangents[j * 4 + 3];
 					}
 				}
 

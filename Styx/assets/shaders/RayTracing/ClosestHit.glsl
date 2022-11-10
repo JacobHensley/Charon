@@ -11,6 +11,8 @@ struct Payload
 	float Metallic;
 	vec3 WorldPosition;
 	vec3 WorldNormal;
+	mat3 WorldNormalMatrix;
+	vec3 Tangent;
 	vec3 View;
 };
 
@@ -37,7 +39,7 @@ Vertex UnpackVertex(uint vertexBufferIndex, uint index, uint vertexOffset)
 
 	Vertex vertex;
 
-	const int stride = 44;
+	const int stride = 48;
 	const int offset = stride / 4;
 
 	vertex.Position = vec3(
@@ -52,7 +54,16 @@ Vertex UnpackVertex(uint vertexBufferIndex, uint index, uint vertexOffset)
 		m_VertexBuffers[vertexBufferIndex].Data[offset * index + 5]
 	);
 
-	vertex.Normal = normalize(mat3(gl_ObjectToWorldEXT) * vertex.Normal);
+	vertex.Tangent = vec3(
+		m_VertexBuffers[vertexBufferIndex].Data[offset * index + 6],
+		m_VertexBuffers[vertexBufferIndex].Data[offset * index + 7],
+		m_VertexBuffers[vertexBufferIndex].Data[offset * index + 8]
+	);
+
+	float binormalSign = m_VertexBuffers[vertexBufferIndex].Data[offset * index + 9];
+
+	vertex.Binormal = cross(normalize(vertex.Normal), normalize(vertex.Tangent)) * binormalSign;
+
 	return vertex;
 }
 
@@ -61,6 +72,7 @@ Vertex InterpolateVertex(Vertex vertices[3], vec3 barycentrics)
 	Vertex vertex;
 	vertex.Position = vec3(0.0);
 	vertex.Normal = vec3(0.0);
+	vertex.Binormal = vec3(0.0);
 	vertex.Tangent = vec3(0.0);
 	vertex.TextureCoords = vec2(0.0);
 	
@@ -69,11 +81,13 @@ Vertex InterpolateVertex(Vertex vertices[3], vec3 barycentrics)
 		vertex.Position += vertices[i].Position * barycentrics[i];
 		vertex.Normal += vertices[i].Normal * barycentrics[i];
 		vertex.Tangent += vertices[i].Tangent * barycentrics[i];
+		vertex.Binormal += vertices[i].Binormal * barycentrics[i];
 		vertex.TextureCoords += vertices[i].TextureCoords * barycentrics[i];
 	}
 
 	vertex.Normal = normalize(vertex.Normal);
 	vertex.Tangent = normalize(vertex.Tangent);
+	vertex.Binormal = normalize(vertex.Binormal);
 
 	return vertex;	
 }
@@ -108,6 +122,8 @@ void main()
 	g_RayPayload.Metallic = 0.0;
 	g_RayPayload.WorldPosition = worldPosition;
 	g_RayPayload.WorldNormal = worldNormal;
+	g_RayPayload.Tangent = vertex.Binormal;
+	g_RayPayload.WorldNormalMatrix = mat3(vertex.Tangent, vertex.Binormal, vertex.Normal);
 	g_RayPayload.View = normalize(-gl_WorldRayDirectionEXT);
 
 	if (gl_InstanceCustomIndexEXT == 2) // Wall
