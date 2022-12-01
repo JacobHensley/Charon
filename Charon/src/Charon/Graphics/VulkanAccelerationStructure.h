@@ -56,6 +56,8 @@ namespace Charon {
 			uint32_t MaterialIndex;
 		};
 		std::vector<SubmeshData> m_SubmeshData;
+		Ref<StorageBuffer> m_MaterialDataStorageBuffer;
+		std::vector<MaterialBuffer> m_MaterialData;
 	};
 
 }

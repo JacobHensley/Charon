@@ -23,6 +23,7 @@ hitAttributeEXT vec2 g_HitAttributes;
 layout(std430, binding = 4) buffer Vertices { float Data[]; } m_VertexBuffers[];
 layout(std430, binding = 5) buffer Indices { uint Data[]; } m_IndexBuffers[];
 layout(std430, binding = 6) buffer SubmeshData { uint Data[]; } m_SubmeshData;
+layout(std430, binding = 7) buffer Materials { float Data[]; } m_Materials[];
 
 struct Vertex
 {
@@ -99,6 +100,8 @@ void main()
 	uint indexOffset = m_SubmeshData.Data[gl_InstanceCustomIndexEXT * 4 + 2];
 	uint materialIndex  = m_SubmeshData.Data[gl_InstanceCustomIndexEXT * 4 + 3];
 
+	float[] materialData = m_Materials[materialIndex + bufferIndex];
+
 	uint index0 = m_IndexBuffers[bufferIndex].Data[gl_PrimitiveID * 3 + 0 + indexOffset];
 	uint index1 = m_IndexBuffers[bufferIndex].Data[gl_PrimitiveID * 3 + 1 + indexOffset];
 	uint index2 = m_IndexBuffers[bufferIndex].Data[gl_PrimitiveID * 3 + 2 + indexOffset];
@@ -133,8 +136,8 @@ void main()
 	}
 	else if (gl_InstanceCustomIndexEXT == 3) // Sphere
 	{
-		g_RayPayload.Albedo = vec3(0.5);
-		g_RayPayload.Roughness = 0.0;
+		g_RayPayload.Albedo = vec3(0.8, 0.4, 0.2);
+		g_RayPayload.Roughness = 0.5;
 		g_RayPayload.Metallic = 1.0;
 	}
 	 

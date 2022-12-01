@@ -5,7 +5,7 @@
 
 #include <GLFW/glfw3.h>
 
-static const bool s_EnableValidationLayers = true;
+static const bool s_EnableValidationLayers = false;
 static const std::vector<const char*> s_ValidationLayers =
 {
     "VK_LAYER_KHRONOS_validation"

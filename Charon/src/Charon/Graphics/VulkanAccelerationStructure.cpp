@@ -26,6 +26,10 @@ namespace Charon {
 			m_BottomLevelAccelerationStructure.resize(submeshes.size());
 			m_SubmeshData.resize(submeshes.size());
 			m_SubmeshDataStorageBuffer = CreateRef<StorageBuffer>(sizeof(SubmeshData) * submeshes.size());
+
+			m_MaterialData.resize(m_Specification.Mesh->GetMaterials().size()); // TODO: per mesh
+			m_MaterialDataStorageBuffer = CreateRef<StorageBuffer>(sizeof(MaterialBuffer) * m_MaterialData.size());
+
 			for (size_t i = 0; i < submeshes.size(); i++)
 			{
 				auto& info = m_BottomLevelAccelerationStructure[i];

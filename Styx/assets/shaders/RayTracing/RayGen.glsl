@@ -47,6 +47,7 @@ struct Payload
 layout(location = 0) rayPayloadEXT Payload g_RayPayload;
 
 const float PI = 3.14159265359;
+const float Epsilon = 0.00001;
 
 uint WangHash(uint seed)
 {
@@ -122,6 +123,20 @@ vec3 PointLight(Payload payload)
 	float intensity = angle * falloff;
 	float visibility = LightVisibility(payload, lightDir, dist);
 	return payload.Albedo * intensity * visibility;
+}
+
+vec3 AreaLight(Payload payload, inout uint seed)
+{
+	float areaLightSize = 5.01;
+	vec2 random = vec2(GetRandomNumber(seed), GetRandomNumber(seed));
+	vec3 randomLightPos = u_Scene.PointLight_Position + areaLightSize * vec3(0.0, random);
+
+	vec3 lightDir = normalize(randomLightPos - payload.WorldPosition);
+	float d = length(randomLightPos - payload.WorldPosition);
+
+	float visibility = LightVisibility(payload, lightDir, d);
+
+	return payload.Albedo * visibility * 0.5;
 }
 
 vec3 DiffuseLighting(Payload payload, uint seed)
@@ -204,7 +219,6 @@ vec3 SampleMicrofacetBRDF(RayDesc ray, Payload payload, inout uint seed, out vec
 		float NdotV = clamp(dot(payload.WorldNormal, payload.View), 0.0, 1.0);
 		float VdotH = clamp(dot(payload.View, H), 0.0, 1.0);
 
-
 		vec3 F = FresnelSchlickRoughness(F0, max(0.0, clamp(dot(H, payload.View), 0.0, 1.0)), payload.Roughness);
 		float D = NdfGGX(cosLh, payload.Roughness);
 		float G = GaSchlickGGX(cosLi, NdotV, payload.Roughness);
@@ -242,6 +256,32 @@ vec3 SampleMicrofacetBRDF(RayDesc ray, Payload payload, inout uint seed, out vec
 	return L;
 }
 
+vec3 DirectionalLight_Contribution(RayDesc ray, Payload payload)
+{
+	vec3 F0 = mix(vec3(0.04), payload.Albedo, payload.Metallic);
+	float NdotV = clamp(dot(payload.WorldNormal, payload.View), 0.0, 1.0);
+
+	vec3 Li = -u_Scene.DirectionalLight_Direction;
+	vec3 Lradiance = vec3(0.8) * 1.5;
+	vec3 Lh = normalize(Li + payload.View);
+
+	float cosLi = max(0.0, dot(payload.WorldNormal, Li));
+	float cosLh = max(0.0, dot(payload.WorldNormal, Lh));
+
+	vec3 F = FresnelSchlickRoughness(F0, max(0.0, dot(Lh, payload.View)), payload.Roughness);
+	float D = NdfGGX(cosLh, payload.Roughness);
+	float G = GaSchlickGGX(cosLi, NdotV, payload.Roughness);
+
+	vec3 kd = (1.0 - F) * (1.0 - payload.Metallic);
+	vec3 diffuseBRDF = kd * payload.Albedo;
+
+	vec3 specularBRDF = (F * D * G) / max(Epsilon, 4.0 * cosLi * NdotV);
+
+	float visibility = LightVisibility(payload, Li, 1e27f);
+
+	return (diffuseBRDF + specularBRDF) * Lradiance * cosLi * visibility;
+}
+
 vec3 RandomPointInUnitCircle(inout uint seed)
 {
 	while (true) 
@@ -264,6 +304,9 @@ vec3 TracePath(RayDesc ray, uint seed)
 	bool twoSided = false;
 
 	vec3 contribution = vec3(1.0);
+	vec3 directionalContribution = vec3(0.0);
+
+	float dc = 1.0;
 
 	for (int bounceIndex = 0; bounceIndex < MAX_BOUNCES; bounceIndex++)
 	{
@@ -291,11 +334,10 @@ vec3 TracePath(RayDesc ray, uint seed)
 		// Miss
 		if (payload.Distance == -1.0)
 		{
-			vec3 clearColor = vec3(0.4, 0.6, 0.8);
-			clearColor = vec3(0.0);
 			vec3 ambientLight = vec3(0.8, 0.9, 1.0);
-
+			ambientLight *= 0.2;
 			color += ambientLight * contribution;
+			color += directionalContribution;
 			break;
 		}
 
@@ -304,8 +346,17 @@ vec3 TracePath(RayDesc ray, uint seed)
 #define NEW 1
 #if NEW
 		vec3 throughput = vec3(0.0);
+		vec3 directionalThroughput = vec3(0.0);
 		vec3 directLight = DiffuseLighting(payload, seed); // Do direct lighting here
 		ray.Direction = SampleMicrofacetBRDF(ray, payload, seed, throughput);
+
+		directionalThroughput += DirectionalLight_Contribution(ray, payload);
+		directionalThroughput += AreaLight(payload, seed);
+
+		directionalContribution += directionalThroughput * contribution;
+
+		dc *= 0.7;
+
 		//color += directLight * contribution;
 
 		contribution *= throughput;

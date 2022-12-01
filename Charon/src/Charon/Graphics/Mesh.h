@@ -1,6 +1,7 @@
 #pragma once
 #include "Charon/Asset/Asset.h"
 #include "Charon/Graphics/Buffers.h"
+#include "Charon/Graphics/Material.h"
 #include <tinygltf/tiny_gltf.h>
 #include <glm/glm.hpp>
 
@@ -34,6 +35,8 @@ namespace Charon {
 		inline Ref<VertexBuffer> GetVertexBuffer() const { return m_VertexBuffer; }
 		inline Ref<IndexBuffer> GetIndexBuffer() const { return m_IndexBuffer; }
 
+		const std::vector<Ref<Material>>& GetMaterials() const { return m_Materials; }
+
 	private:
 		void Init();
 		void LoadData();
@@ -45,6 +48,7 @@ namespace Charon {
 		std::vector<SubMesh> m_SubMeshes;
 		std::vector<Vertex> m_Vertices;
 		std::vector<uint32_t> m_Indices;
+		std::vector<Ref<Material>> m_Materials;
 
 		Ref<VertexBuffer> m_VertexBuffer;
 		Ref<IndexBuffer> m_IndexBuffer;

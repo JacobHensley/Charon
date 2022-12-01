@@ -151,6 +151,58 @@ namespace Charon {
 			subMeshIndexOffset += subMeshIndexCount;
 			subMeshVertexOffset += subMeshVertexCount;
 		}
+
+
+		for (tinygltf::Material& mat : m_Model.materials)
+		{
+			Ref<Material> material = m_Materials.emplace_back(CreateRef<Material>());
+			MaterialBuffer& materialBuffer = material->GetMaterialBuffer();
+
+			// if (mat.values.find("baseColorTexture") != mat.values.end())
+			// 	material.baseColorTexture = getTexture(gltfModel.textures[mat.values["baseColorTexture"].TextureIndex()].source);
+			
+			// Metallic roughness workflow
+			//if (mat.values.find("metallicRoughnessTexture") != mat.values.end())
+			//	material.metallicRoughnessTexture = getTexture(gltfModel.textures[mat.values["metallicRoughnessTexture"].TextureIndex()].source);
+			
+			if (mat.values.find("roughnessFactor") != mat.values.end())
+				materialBuffer.Roughness = (float)mat.values["roughnessFactor"].Factor();
+			
+			if (mat.values.find("metallicFactor") != mat.values.end())
+				materialBuffer.Metallic = (float)mat.values["metallicFactor"].Factor();
+			
+			if (mat.values.find("baseColorFactor") != mat.values.end())
+				materialBuffer.AlbedoValue = glm::make_vec3(mat.values["baseColorFactor"].ColorFactor().data());
+			
+			/*
+			if (mat.additionalValues.find("normalTexture") != mat.additionalValues.end())
+				material.normalTexture = getTexture(gltfModel.textures[mat.additionalValues["normalTexture"].TextureIndex()].source);
+		
+			else {
+				material.normalTexture = &emptyTexture;
+			}
+			if (mat.additionalValues.find("emissiveTexture") != mat.additionalValues.end())
+				material.emissiveTexture = getTexture(gltfModel.textures[mat.additionalValues["emissiveTexture"].TextureIndex()].source);
+			
+			if (mat.additionalValues.find("occlusionTexture") != mat.additionalValues.end())
+				material.occlusionTexture = getTexture(gltfModel.textures[mat.additionalValues["occlusionTexture"].TextureIndex()].source);
+			
+			if (mat.additionalValues.find("alphaMode") != mat.additionalValues.end()) {
+				tinygltf::Parameter param = mat.additionalValues["alphaMode"];
+				if (param.string_value == "BLEND") {
+					material.alphaMode = Material::ALPHAMODE_BLEND;
+				}
+				if (param.string_value == "MASK") {
+					material.alphaMode = Material::ALPHAMODE_MASK;
+				}
+			}
+			if (mat.additionalValues.find("alphaCutoff") != mat.additionalValues.end())
+				material.alphaCutoff = static_cast<float>(mat.additionalValues["alphaCutoff"].Factor());
+			
+
+			materials.push_back(material);*/
+		}
+
 	}
 
 	void Mesh::CalculateNodeTransforms(const tinygltf::Node& inputNode, const tinygltf::Model& input, const glm::mat4& parentTransform)
