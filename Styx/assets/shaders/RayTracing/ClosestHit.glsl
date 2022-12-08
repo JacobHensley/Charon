@@ -23,7 +23,7 @@ hitAttributeEXT vec2 g_HitAttributes;
 layout(std430, binding = 4) buffer Vertices { float Data[]; } m_VertexBuffers[];
 layout(std430, binding = 5) buffer Indices { uint Data[]; } m_IndexBuffers[];
 layout(std430, binding = 6) buffer SubmeshData { uint Data[]; } m_SubmeshData;
-layout(std430, binding = 7) buffer Materials { float Data[]; } m_Materials[];
+layout(std430, binding = 8) buffer Materials { float Data[]; } m_Materials;
 
 struct Vertex
 {
@@ -32,6 +32,18 @@ struct Vertex
 	vec3 Binormal;
 	vec3 Tangent;
 	vec2 TextureCoords;
+};
+
+struct Material
+{
+	vec3 AlbedoValue;
+	float Metallic;
+	float Roughness;
+
+	uint AlbedoMap;
+	uint NormalMap;
+	uint MetallicMap;
+	uint RoughnessMap;
 };
 
 Vertex UnpackVertex(uint vertexBufferIndex, uint index, uint vertexOffset)
@@ -93,14 +105,36 @@ Vertex InterpolateVertex(Vertex vertices[3], vec3 barycentrics)
 	return vertex;	
 }
 
+
+Material UnpackMaterial(uint materialIndex)
+{
+	uint offset = materialIndex * 9;
+
+	Material material;
+	material.AlbedoValue = vec3(
+		m_Materials.Data[offset + 0],
+		m_Materials.Data[offset + 1],
+		m_Materials.Data[offset + 2]
+	);
+	material.Metallic = m_Materials.Data[offset + 3];
+	material.Roughness = m_Materials.Data[offset + 4];
+
+	material.AlbedoMap = 0;
+	material.NormalMap = 0;
+	material.MetallicMap = 0;
+	material.RoughnessMap = 0;
+
+	return material;
+}
+
 void main()
 {
 	uint bufferIndex = m_SubmeshData.Data[gl_InstanceCustomIndexEXT * 4 + 0];
 	uint vertexOffset = m_SubmeshData.Data[gl_InstanceCustomIndexEXT * 4 + 1];
 	uint indexOffset = m_SubmeshData.Data[gl_InstanceCustomIndexEXT * 4 + 2];
-	uint materialIndex  = m_SubmeshData.Data[gl_InstanceCustomIndexEXT * 4 + 3];
+	uint materialIndex = m_SubmeshData.Data[gl_InstanceCustomIndexEXT * 4 + 3];
 
-	float[] materialData = m_Materials[materialIndex + bufferIndex];
+	Material material = UnpackMaterial(materialIndex);
 
 	uint index0 = m_IndexBuffers[bufferIndex].Data[gl_PrimitiveID * 3 + 0 + indexOffset];
 	uint index1 = m_IndexBuffers[bufferIndex].Data[gl_PrimitiveID * 3 + 1 + indexOffset];
@@ -140,5 +174,9 @@ void main()
 		g_RayPayload.Roughness = 0.5;
 		g_RayPayload.Metallic = 1.0;
 	}
+
+	g_RayPayload.Albedo = material.AlbedoValue;
+	g_RayPayload.Metallic = material.Metallic;
+	g_RayPayload.Roughness = material.Roughness;
 	 
 }

@@ -65,7 +65,8 @@ namespace Charon {
 		m_ViewportPanel = CreateRef<ViewportPanel>();
 
 		m_SceneObject = m_Scene->CreateObject("Test Object");
-		m_MeshHandle = AssetManager::Load<Mesh>("assets/models/CornellWithSphere.gltf");
+		//m_MeshHandle = AssetManager::Load<Mesh>("assets/models/CornellWithSphere.gltf");
+		m_MeshHandle = AssetManager::Load<Mesh>("assets/models/new-sponza/Sponza-Baked.gltf");
 
 		{
 			AccelerationStructureSpecification spec;
@@ -175,6 +176,7 @@ namespace Charon {
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5, indexBufferInfos.data(), (uint32_t)indexBufferInfos.size()),
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6, &submeshDataSB->getDescriptorBufferInfo()),
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 7, &m_SceneUB->getDescriptorBufferInfo()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 8, &m_AccelerationStructure->GetMaterialBuffer()->getDescriptorBufferInfo()),
 		};
 
 		vkUpdateDescriptorSets(device->GetLogicalDevice(), rayTracingWriteDescriptors.size(), rayTracingWriteDescriptors.data(), 0, NULL);

@@ -22,7 +22,7 @@ namespace Charon {
 		for (auto object : group)
 		{
 			auto [transform, mesh] = group.get<TransformComponent, MeshComponent>(object);
-			SceneRenderer::SubmitMesh(mesh.GetMesh(), transform.GetTransform());
+			//SceneRenderer::SubmitMesh(mesh.GetMesh(), transform.GetTransform());
 		}
 
 		SceneRenderer::End();

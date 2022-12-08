@@ -13,6 +13,7 @@ namespace Charon {
 		uint32_t VertexCount = 0;
 		uint32_t IndexOffset = 0;
 		uint32_t IndexCount = 0;
+		uint32_t MaterialIndex = 0;
 		glm::mat4 Transform = glm::mat4(1.0f);
 	};
 

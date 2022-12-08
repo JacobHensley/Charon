@@ -48,11 +48,11 @@ namespace Charon {
 		{
 			tinygltf::Mesh mesh = m_Model.meshes[i];
 
-			int subMeshVertexCount = 0;
-			int subMeshIndexCount = 0;
-
 			for (int i = 0; i < mesh.primitives.size(); i++)
 			{
+				int subMeshVertexCount = 0;
+				int subMeshIndexCount = 0;
+
 				const tinygltf::Primitive& primitive = mesh.primitives[i];
 
 				// Positions
@@ -127,29 +127,42 @@ namespace Charon {
 				// Indices
 				{
 					const tinygltf::Accessor& accessor = m_Model.accessors[primitive.indices];
+					
 					const tinygltf::BufferView& bufferView = m_Model.bufferViews[accessor.bufferView];
 					const tinygltf::Buffer& buffer = m_Model.buffers[bufferView.buffer];
-					// TODO: Ask about if this is limiting index precision
-					const uint16_t* indices = reinterpret_cast<const uint16_t*>(&buffer.data[bufferView.byteOffset + accessor.byteOffset]);
-
 					subMeshIndexCount = accessor.count;
 					m_Indices.resize(subMeshIndexOffset + subMeshIndexCount);
-
-					for (int j = 0; j < accessor.count; j++)
+					// TODO: Ask about if this is limiting index precision
+					if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
 					{
-						m_Indices[subMeshIndexOffset + j] = indices[j];
+						const uint32_t* indices = reinterpret_cast<const uint32_t*>(&buffer.data[bufferView.byteOffset + accessor.byteOffset]);
+						for (int j = 0; j < accessor.count; j++)
+							m_Indices[subMeshIndexOffset + j] = indices[j];
 					}
+					else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+					{
+						const uint16_t* indices = reinterpret_cast<const uint16_t*>(&buffer.data[bufferView.byteOffset + accessor.byteOffset]);
+						for (int j = 0; j < accessor.count; j++)
+							m_Indices[subMeshIndexOffset + j] = (uint32_t)indices[j];
+					}
+					else
+					{
+						CR_ASSERT(false, "");
+					}
+
 				}
+
+				SubMesh& subMesh = m_SubMeshes.emplace_back();
+				subMesh.IndexCount = subMeshIndexCount;
+				subMesh.IndexOffset = subMeshIndexOffset;
+				subMesh.VertexCount = subMeshVertexCount;
+				subMesh.VertexOffset = subMeshVertexOffset;
+				subMesh.MaterialIndex = primitive.material;
+
+				subMeshIndexOffset += subMeshIndexCount;
+				subMeshVertexOffset += subMeshVertexCount;
 			}
 
-			SubMesh& subMesh = m_SubMeshes.emplace_back();
-			subMesh.IndexCount = subMeshIndexCount;
-			subMesh.IndexOffset = subMeshIndexOffset;
-			subMesh.VertexCount = subMeshVertexCount;
-			subMesh.VertexOffset = subMeshVertexOffset;
-
-			subMeshIndexOffset += subMeshIndexCount;
-			subMeshVertexOffset += subMeshVertexCount;
 		}
 
 
@@ -158,6 +171,8 @@ namespace Charon {
 			Ref<Material> material = m_Materials.emplace_back(CreateRef<Material>());
 			MaterialBuffer& materialBuffer = material->GetMaterialBuffer();
 
+			
+
 			// if (mat.values.find("baseColorTexture") != mat.values.end())
 			// 	material.baseColorTexture = getTexture(gltfModel.textures[mat.values["baseColorTexture"].TextureIndex()].source);
 			
@@ -165,6 +180,8 @@ namespace Charon {
 			//if (mat.values.find("metallicRoughnessTexture") != mat.values.end())
 			//	material.metallicRoughnessTexture = getTexture(gltfModel.textures[mat.values["metallicRoughnessTexture"].TextureIndex()].source);
 			
+			
+
 			if (mat.values.find("roughnessFactor") != mat.values.end())
 				materialBuffer.Roughness = (float)mat.values["roughnessFactor"].Factor();
 			
@@ -173,6 +190,19 @@ namespace Charon {
 			
 			if (mat.values.find("baseColorFactor") != mat.values.end())
 				materialBuffer.AlbedoValue = glm::make_vec3(mat.values["baseColorFactor"].ColorFactor().data());
+
+			materialBuffer.AlbedoValue = glm::vec3(mat.pbrMetallicRoughness.baseColorFactor[0], mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]);
+			materialBuffer.Metallic = mat.pbrMetallicRoughness.metallicFactor;
+			materialBuffer.Roughness = mat.pbrMetallicRoughness.roughnessFactor;
+
+			if (mat.pbrMetallicRoughness.baseColorTexture.index != -1)
+			{
+				const auto& texture = m_Model.textures[mat.pbrMetallicRoughness.baseColorTexture.index];
+				const auto& image = m_Model.images[texture.source];
+				//image.image.data();
+				CR_LOG_WARN("Texture: {}", image.uri);
+				materialBuffer.AlbedoValue = glm::vec3(1, 0, 1);
+			}
 			
 			/*
 			if (mat.additionalValues.find("normalTexture") != mat.additionalValues.end())
@@ -224,6 +254,7 @@ namespace Charon {
 		};
 
 		m_SubMeshes[inputNode.mesh].Transform = parentTransform * transform;
+		
 
 		if (inputNode.children.size() > 0) {
 			for (size_t i = 0; i < inputNode.children.size(); i++) 

@@ -9,6 +9,11 @@ namespace Charon {
 		glm::vec3 AlbedoValue{0.8f};
 		float Metallic = 0.0f;
 		float Roughness = 1.0f;
+
+		uint32_t AlbedoMap = 0;
+		uint32_t NormalMap = 0;
+		uint32_t MetallicMap = 0;
+		uint32_t RoughnessMap = 0;
 	};
 
 	class Material

@@ -27,9 +27,6 @@ namespace Charon {
 			m_SubmeshData.resize(submeshes.size());
 			m_SubmeshDataStorageBuffer = CreateRef<StorageBuffer>(sizeof(SubmeshData) * submeshes.size());
 
-			m_MaterialData.resize(m_Specification.Mesh->GetMaterials().size()); // TODO: per mesh
-			m_MaterialDataStorageBuffer = CreateRef<StorageBuffer>(sizeof(MaterialBuffer) * m_MaterialData.size());
-
 			for (size_t i = 0; i < submeshes.size(); i++)
 			{
 				auto& info = m_BottomLevelAccelerationStructure[i];
@@ -37,6 +34,19 @@ namespace Charon {
 			}
 
 			CreateTopLevelAccelerationStructure();
+
+			// Materials
+			m_MaterialData.reserve(m_Specification.Mesh->GetMaterials().size()); // TODO: per mesh
+			for (const auto& material : m_Specification.Mesh->GetMaterials())
+			{
+				m_MaterialData.emplace_back(material->GetMaterialBuffer());
+			}
+			m_MaterialDataStorageBuffer = CreateRef<StorageBuffer>(sizeof(MaterialBuffer) * m_MaterialData.size());
+			void* buffer = m_MaterialDataStorageBuffer->Map<void>();
+			memcpy(buffer, m_MaterialData.data(), m_MaterialDataStorageBuffer->GetSize());
+			m_MaterialDataStorageBuffer->Unmap();
+
+			m_MaterialIndexOffset += m_MaterialData.size();
 		}
 
 	}
@@ -59,7 +69,7 @@ namespace Charon {
 			submeshData.BufferIndex = 0; // TODO: when we support multiple Meshes, this needs to be Mesh index (not submesh)
 			submeshData.VertexOffset = submesh.VertexOffset;
 			submeshData.IndexOffset = submesh.IndexOffset;
-			submeshData.MaterialIndex = 0; // TODO: materials
+			submeshData.MaterialIndex = m_MaterialIndexOffset + submesh.MaterialIndex; // TODO: this is a GLOBAL INDEX for all meshes
 
 			glm::mat4 rmWorldTransform = glm::transpose(m_Specification.Transform * submesh.Transform); // Row-major
 
