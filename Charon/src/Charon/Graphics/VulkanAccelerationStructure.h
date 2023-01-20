@@ -38,6 +38,7 @@ namespace Charon {
 		const VkAccelerationStructureKHR& GetAccelerationStructure() { return m_TopLevelAccelerationStructure.AccelerationStructure; }
 		Ref<StorageBuffer> GetSubmeshDataStorageBuffer() const { return m_SubmeshDataStorageBuffer; }
 		Ref<StorageBuffer> GetMaterialBuffer() const { return m_MaterialDataStorageBuffer; }
+		const std::vector<Ref<Texture2D>>& GetTextures() const { return m_Textures; }
 	private:
 		void Init();
 
@@ -59,8 +60,10 @@ namespace Charon {
 		std::vector<SubmeshData> m_SubmeshData;
 		Ref<StorageBuffer> m_MaterialDataStorageBuffer;
 		std::vector<MaterialBuffer> m_MaterialData;
+		std::vector<Ref<Texture2D>> m_Textures;
 
 		uint32_t m_MaterialIndexOffset = 0;
+		uint32_t m_TextureIndexOffset = 0;
 	};
 
 }

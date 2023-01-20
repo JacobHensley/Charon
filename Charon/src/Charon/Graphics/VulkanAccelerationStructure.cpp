@@ -37,16 +37,25 @@ namespace Charon {
 
 			// Materials
 			m_MaterialData.reserve(m_Specification.Mesh->GetMaterials().size()); // TODO: per mesh
+			m_Textures.reserve(m_Specification.Mesh->GetTextures().size()); // TODO: per mesh
 			for (const auto& material : m_Specification.Mesh->GetMaterials())
 			{
-				m_MaterialData.emplace_back(material->GetMaterialBuffer());
+				MaterialBuffer& buffer = material->GetMaterialBuffer();
+				buffer.AlbedoMap += m_TextureIndexOffset;
+				m_MaterialData.emplace_back(buffer);
 			}
+			for (const auto& texture : m_Specification.Mesh->GetTextures())
+			{
+				m_Textures.emplace_back(texture);
+			}
+
 			m_MaterialDataStorageBuffer = CreateRef<StorageBuffer>(sizeof(MaterialBuffer) * m_MaterialData.size());
 			void* buffer = m_MaterialDataStorageBuffer->Map<void>();
 			memcpy(buffer, m_MaterialData.data(), m_MaterialDataStorageBuffer->GetSize());
 			m_MaterialDataStorageBuffer->Unmap();
 
 			m_MaterialIndexOffset += m_MaterialData.size();
+			m_TextureIndexOffset += m_Textures.size();
 		}
 
 	}

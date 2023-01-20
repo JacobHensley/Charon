@@ -49,6 +49,10 @@ layout(location = 0) rayPayloadEXT Payload g_RayPayload;
 const float PI = 3.14159265359;
 const float Epsilon = 0.00001;
 
+////////////////////////////////////////////////////////////////
+// Utility Functions ///////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+
 uint WangHash(uint seed)
 {
     seed = (seed ^ 61) ^ (seed >> 16);
@@ -84,6 +88,52 @@ vec3 GetRandomCosineDirectionOnHemisphere(vec3 direction, inout uint seed)
 	return normalize(p);
 }
 
+vec3 RandomPointInUnitCircle(inout uint seed)
+{
+	while (true) 
+	{
+		vec3 p = vec3(GetRandomNumber(seed) * 2.0 - 1.0, GetRandomNumber(seed) * 2.0 - 1.0, GetRandomNumber(seed) * 2.0 - 1.0);
+		if ((p.length() * p.length()) < 1) continue;
+		return p;
+	}
+}
+
+////////////////////////////////////////////////////////////////
+// PBR Functions ///////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+
+vec3 FresnelSchlickRoughness(vec3 F0, float cosTheta, float roughness)
+{
+	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+// GGX/Towbridge-Reitz normal distribution function.
+// Uses Disney's reparametrization of alpha = roughness^2
+float NdfGGX(float cosLh, float roughness)
+{
+	float alpha = roughness * roughness;
+	float alphaSq = alpha * alpha;
+
+	float denom = (cosLh * cosLh) * (alphaSq - 1.0) + 1.0;
+	return alphaSq / (PI * denom * denom);
+}
+
+// Single term for separable Schlick-GGX below.
+float GaSchlickG1(float cosTheta, float k)
+{
+	return cosTheta / (cosTheta * (1.0 - k) + k);
+}
+
+// Schlick-GGX approximation of geometric attenuation function using Smith's method.
+float GaSchlickGGX(float cosLi, float NdotV, float roughness)
+{
+	float r = roughness + 1.0;
+	float k = (r * r) / 8.0; // Epic suggests using this roughness remapping for analytic lights.
+	return GaSchlickG1(cosLi, k) * GaSchlickG1(NdotV, k);
+}
+
+////////////////////////////////////////////////////////////////
+
 float LightVisibility(Payload payload, vec3 lightVector, float maxValue)
 {
 	RayDesc ray;
@@ -101,12 +151,21 @@ float LightVisibility(Payload payload, vec3 lightVector, float maxValue)
 	return (g_RayPayload.Distance < 0.0) ? 1.0 : 0.0;
 }
 
-vec3 DirectionalLight(Payload payload)
+float LightVisibilityDistance(Payload payload, vec3 lightVector, float maxValue, out float hitDistance)
 {
-	vec3 toLight = -u_Scene.DirectionalLight_Direction;
-	float intensity = max(dot(payload.WorldNormal, toLight), 0.0);
-	float visibility = LightVisibility(payload, toLight, 1e27f);
-	return payload.Albedo * intensity * visibility;
+	RayDesc ray;
+	ray.Origin = payload.WorldPosition + (payload.WorldNormal * 0.001);
+	ray.Direction = lightVector;
+	ray.TMin = 0.0;
+	ray.TMax = maxValue;
+
+	uint mask = 0xff;
+	uint flags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT | gl_RayFlagsOpaqueEXT;
+
+	g_RayPayload.Distance = 0.0;
+	traceRayEXT(u_TopLevelAS, flags, mask, 0, 0, 0, ray.Origin, ray.TMin, ray.Direction, ray.TMax, 0);
+	hitDistance = g_RayPayload.Distance;
+	return (g_RayPayload.Distance < 0.0) ? 1.0 : 0.0;
 }
 
 vec3 PointLight(Payload payload)
@@ -137,60 +196,6 @@ vec3 AreaLight(Payload payload, inout uint seed)
 	float visibility = LightVisibility(payload, lightDir, d);
 
 	return payload.Albedo * visibility * 0.5;
-}
-
-vec3 DiffuseLighting(Payload payload, uint seed)
-{
-	vec3 directionalLight = DirectionalLight(payload);
-	vec3 pointLight = PointLight(payload);
-
-	vec3 lightPos = u_Scene.PointLight_Position;
-
-	float areaLightSize = 5.01;
-	vec2 random = vec2(GetRandomNumber(seed), GetRandomNumber(seed));
-	vec3 randomLightPos = lightPos + areaLightSize * vec3(0.0, random);
-
-	vec3 lightDir = normalize(randomLightPos - payload.WorldPosition);
-	float d = length(randomLightPos - payload.WorldPosition);
-
-	float visibility = LightVisibility(payload, lightDir, d);
-
-	return directionalLight;
-
-	return payload.Albedo * visibility * 0.5;
-
-	//return pointLight;
-	//return directionalLight + pointLight;
-}
-
-vec3 FresnelSchlickRoughness(vec3 F0, float cosTheta, float roughness)
-{
-	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
-}
-
-// GGX/Towbridge-Reitz normal distribution function.
-// Uses Disney's reparametrization of alpha = roughness^2
-float NdfGGX(float cosLh, float roughness)
-{
-	float alpha = roughness * roughness;
-	float alphaSq = alpha * alpha;
-
-	float denom = (cosLh * cosLh) * (alphaSq - 1.0) + 1.0;
-	return alphaSq / (PI * denom * denom);
-}
-
-// Single term for separable Schlick-GGX below.
-float GaSchlickG1(float cosTheta, float k)
-{
-	return cosTheta / (cosTheta * (1.0 - k) + k);
-}
-
-// Schlick-GGX approximation of geometric attenuation function using Smith's method.
-float GaSchlickGGX(float cosLi, float NdotV, float roughness)
-{
-	float r = roughness + 1.0;
-	float k = (r * r) / 8.0; // Epic suggests using this roughness remapping for analytic lights.
-	return GaSchlickG1(cosLi, k) * GaSchlickG1(NdotV, k);
 }
 
 // Returns next ray direction
@@ -227,12 +232,6 @@ vec3 SampleMicrofacetBRDF(RayDesc ray, Payload payload, inout uint seed, out vec
 
 		throughput *= 2.0;
 
-		//throughput = vec3(NdotV);
-
-		//if (any(greaterThan(throughput, vec3(1.0))))
-		//	throughput = vec3(1, 0, 1);
-
-		//throughput = min(throughput, vec3(0.9));
 		return L;
 	}
 
@@ -256,13 +255,13 @@ vec3 SampleMicrofacetBRDF(RayDesc ray, Payload payload, inout uint seed, out vec
 	return L;
 }
 
-vec3 DirectionalLight_Contribution(RayDesc ray, Payload payload)
+vec3 DirectionalLight_Contribution(RayDesc ray, Payload payload, inout uint seed, vec3 directionalContribution)
 {
 	vec3 F0 = mix(vec3(0.04), payload.Albedo, payload.Metallic);
 	float NdotV = clamp(dot(payload.WorldNormal, payload.View), 0.0, 1.0);
 
 	vec3 Li = -u_Scene.DirectionalLight_Direction;
-	vec3 Lradiance = vec3(0.8) * 1.5;
+	vec3 Lradiance = vec3(0.8) * 1.0;
 	vec3 Lh = normalize(Li + payload.View);
 
 	float cosLi = max(0.0, dot(payload.WorldNormal, Li));
@@ -278,18 +277,10 @@ vec3 DirectionalLight_Contribution(RayDesc ray, Payload payload)
 	vec3 specularBRDF = (F * D * G) / max(Epsilon, 4.0 * cosLi * NdotV);
 
 	float visibility = LightVisibility(payload, Li, 1e27f);
+	if (visibility < 0.5)
+		return vec3((diffuseBRDF + specularBRDF) * 0.2 * Lradiance);
 
 	return (diffuseBRDF + specularBRDF) * Lradiance * cosLi * visibility;
-}
-
-vec3 RandomPointInUnitCircle(inout uint seed)
-{
-	while (true) 
-	{
-		vec3 p = vec3(GetRandomNumber(seed) * 2.0 - 1.0, GetRandomNumber(seed) * 2.0 - 1.0, GetRandomNumber(seed) * 2.0 - 1.0);
-		if ((p.length() * p.length()) < 1) continue;
-		return p;
-	}
 }
 
 vec3 TracePath(RayDesc ray, uint seed)
@@ -303,10 +294,10 @@ vec3 TracePath(RayDesc ray, uint seed)
 	float numPaths = 0.0f;
 	bool twoSided = false;
 
-	vec3 contribution = vec3(1.0);
+	vec3 ambientContribution = vec3(1.0);
 	vec3 directionalContribution = vec3(0.0);
 
-	float dc = 1.0;
+	float directThroughput = 1.0;
 
 	for (int bounceIndex = 0; bounceIndex < MAX_BOUNCES; bounceIndex++)
 	{
@@ -329,67 +320,35 @@ vec3 TracePath(RayDesc ray, uint seed)
 				payload.WorldNormal = -payload.WorldNormal;
 		}
 
-//		numPaths += ((throughput.r + throughput.g + throughput.b) / 3);
-
 		// Miss
 		if (payload.Distance == -1.0)
 		{
 			vec3 ambientLight = vec3(0.8, 0.9, 1.0);
-			ambientLight *= 0.2;
-			color += ambientLight * contribution;
-			color += directionalContribution;
+			ambientLight *= 1.0;
+			color += ambientLight * ambientContribution;
 			break;
 		}
 
 		seed++;
 
-#define NEW 1
-#if NEW
-		vec3 throughput = vec3(0.0);
+		// Ambient light (sky light)
+		vec3 ambientThroughput;
+		ray.Direction = SampleMicrofacetBRDF(ray, payload, seed, ambientThroughput);
+		ambientContribution *= ambientThroughput;
+
+		// Direct light
 		vec3 directionalThroughput = vec3(0.0);
-		vec3 directLight = DiffuseLighting(payload, seed); // Do direct lighting here
-		ray.Direction = SampleMicrofacetBRDF(ray, payload, seed, throughput);
-
-		directionalThroughput += DirectionalLight_Contribution(ray, payload);
-		directionalThroughput += AreaLight(payload, seed);
-
-		directionalContribution += directionalThroughput * contribution;
-
-		dc *= 0.7;
-
-		//color += directLight * contribution;
-
-		contribution *= throughput;
-		//color = payload.Tangent;
-
-		//numPaths += 1.0;
-		// color += payload.WorldNormal;
-#else
-		vec3 diffuse = DiffuseLighting(payload, seed); // Do direct lighting here
-		color += diffuse * contribution;
-
-		if (false && payload.Roughness == 0.0f)
-		{
-			ray.Direction = reflect(ray.Direction, payload.WorldNormal) + RandomPointInUnitCircle(seed) * 0.05f;
-		}
-		else
-		{
-			ray.Direction = GetRandomCosineDirectionOnHemisphere(payload.WorldNormal, seed);
-		}
-
-		float maxAlbedo = 0.9;
-		contribution *= min(payload.Albedo, vec3(maxAlbedo));
-
-		float minEnergy = 0.005;
-		if (contribution.r < minEnergy && contribution.g < minEnergy && contribution.b < minEnergy)
-			break;
-#endif
+		directionalThroughput += DirectionalLight_Contribution(ray, payload, seed, directionalContribution) * directThroughput;
+		// directionalThroughput += AreaLight(payload, seed);
+		directionalContribution += directionalThroughput;
+		directThroughput *= 0.7;
 
 		// Cast reflection ray
 		ray.Origin = payload.WorldPosition;
 		ray.Origin += payload.WorldNormal * 0.0001 - ray.Direction * 0.0001;
 	}
 	
+	color += directionalContribution;
 	return color;
 }
 

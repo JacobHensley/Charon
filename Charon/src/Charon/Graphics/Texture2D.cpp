@@ -5,13 +5,15 @@
 
 namespace Charon {
 
-	Texture2D::Texture2D(const std::string& path)
+	Texture2D::Texture2D(const std::filesystem::path& path)
 		: m_Path(path)
 	{
 		// Load image from disk
 		int width, height, bpp;
 		stbi_set_flip_vertically_on_load(true);
-		uint8_t* data = stbi_load(path.c_str(), &width, &height, &bpp, 4);
+
+		std::string pathStr = path.string();
+		uint8_t* data = stbi_load(pathStr.c_str(), &width, &height, &bpp, 4);
 		CR_ASSERT(data, "Failed to load image");
 
 		// Set width and height

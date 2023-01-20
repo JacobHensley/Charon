@@ -24,6 +24,7 @@ layout(std430, binding = 4) buffer Vertices { float Data[]; } m_VertexBuffers[];
 layout(std430, binding = 5) buffer Indices { uint Data[]; } m_IndexBuffers[];
 layout(std430, binding = 6) buffer SubmeshData { uint Data[]; } m_SubmeshData;
 layout(std430, binding = 8) buffer Materials { float Data[]; } m_Materials;
+layout(binding = 9) uniform sampler2D u_Textures[];
 
 struct Vertex
 {
@@ -73,9 +74,15 @@ Vertex UnpackVertex(uint vertexBufferIndex, uint index, uint vertexOffset)
 		m_VertexBuffers[vertexBufferIndex].Data[offset * index + 8]
 	);
 
+
 	float binormalSign = m_VertexBuffers[vertexBufferIndex].Data[offset * index + 9];
 
 	vertex.Binormal = cross(normalize(vertex.Normal), normalize(vertex.Tangent)) * binormalSign;
+
+	vertex.TextureCoords = vec2(
+		m_VertexBuffers[vertexBufferIndex].Data[offset * index + 10],
+		m_VertexBuffers[vertexBufferIndex].Data[offset * index + 11]
+	);
 
 	return vertex;
 }
@@ -119,7 +126,7 @@ Material UnpackMaterial(uint materialIndex)
 	material.Metallic = m_Materials.Data[offset + 3];
 	material.Roughness = m_Materials.Data[offset + 4];
 
-	material.AlbedoMap = 0;
+	material.AlbedoMap = floatBitsToUint(m_Materials.Data[offset + 5]);
 	material.NormalMap = 0;
 	material.MetallicMap = 0;
 	material.RoughnessMap = 0;
@@ -176,7 +183,15 @@ void main()
 	}
 
 	g_RayPayload.Albedo = material.AlbedoValue;
+
+	// sample texture
+	if (material.AlbedoMap > 0)
+		//g_RayPayload.Albedo = vec3(1, 0, 1);
+		g_RayPayload.Albedo = texture(u_Textures[material.AlbedoMap], vertex.TextureCoords).rgb;
+
 	g_RayPayload.Metallic = material.Metallic;
 	g_RayPayload.Roughness = material.Roughness;
+	g_RayPayload.Metallic = 0;
+	g_RayPayload.Roughness = 0.5;
 	 
 }

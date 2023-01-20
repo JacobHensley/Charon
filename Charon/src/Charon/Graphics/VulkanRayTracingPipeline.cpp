@@ -80,7 +80,7 @@ namespace Charon {
 		// TODO: retrieve caps
 		const uint32_t MaxStorageBufferDescriptorCount = 2048;
 
-		std::array<VkDescriptorSetLayoutBinding, 9> layoutBindings = {
+		std::array<VkDescriptorSetLayoutBinding, 10> layoutBindings = {
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 1),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 2),
@@ -90,6 +90,7 @@ namespace Charon {
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 6),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 7),
 			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 8),
+			Utils::DescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 9, MaxStorageBufferDescriptorCount),
 		};
 
 		// TODO: flags (for bindless)
@@ -104,7 +105,8 @@ namespace Charon {
 			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT, // Binding 5: Index Buffers
 			0, // Binding 6: Submesh Data
 			0, // Binding 7: Scene Buffer
-			0  // Binding 8: Material Buffer
+			0,  // Binding 8: Material Buffer
+			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT, // Binding 9: Textures
 		};
 
 		VkDescriptorSetLayoutBindingFlagsCreateInfo descriptorSetLayoutBindingsCreateInfo{};

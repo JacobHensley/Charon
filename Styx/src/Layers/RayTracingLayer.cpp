@@ -166,6 +166,15 @@ namespace Charon {
 			VkBuffer ib = asSpec.Mesh->GetIndexBuffer()->GetBuffer();
 			indexBufferInfos.push_back({ ib, 0, VK_WHOLE_SIZE });
 		}
+		
+		std::vector<VkDescriptorImageInfo> textureImageInfos;
+		{
+			const auto& textures = m_AccelerationStructure->GetTextures();
+			for (auto texture : textures)
+			{
+				textureImageInfos.push_back(texture->GetDescriptorImageInfo());
+			}
+		}
 
 		std::vector<VkWriteDescriptorSet> rayTracingWriteDescriptors = {
 			accelerationStructureWrite,
@@ -177,6 +186,7 @@ namespace Charon {
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6, &submeshDataSB->getDescriptorBufferInfo()),
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 7, &m_SceneUB->getDescriptorBufferInfo()),
 			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 8, &m_AccelerationStructure->GetMaterialBuffer()->getDescriptorBufferInfo()),
+			Utils::WriteDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 9, textureImageInfos.data(), (uint32_t)textureImageInfos.size()),
 		};
 
 		vkUpdateDescriptorSets(device->GetLogicalDevice(), rayTracingWriteDescriptors.size(), rayTracingWriteDescriptors.data(), 0, NULL);

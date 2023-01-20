@@ -4,7 +4,7 @@
 
 namespace Charon {
 
-	Mesh::Mesh(const std::string& path)
+	Mesh::Mesh(const std::filesystem::path& path)
 		: m_Path(path)
 	{
 		Init();
@@ -20,7 +20,7 @@ namespace Charon {
 		std::string error;
 		std::string warning;
 
-		bool result = loader.LoadASCIIFromFile(&m_Model, &error, &warning, m_Path);
+		bool result = loader.LoadASCIIFromFile(&m_Model, &error, &warning, m_Path.string());
 		CR_ASSERT(warning.empty(), warning);
 		CR_ASSERT(error.empty(), error);
 
@@ -180,8 +180,6 @@ namespace Charon {
 			//if (mat.values.find("metallicRoughnessTexture") != mat.values.end())
 			//	material.metallicRoughnessTexture = getTexture(gltfModel.textures[mat.values["metallicRoughnessTexture"].TextureIndex()].source);
 			
-			
-
 			if (mat.values.find("roughnessFactor") != mat.values.end())
 				materialBuffer.Roughness = (float)mat.values["roughnessFactor"].Factor();
 			
@@ -194,14 +192,20 @@ namespace Charon {
 			materialBuffer.AlbedoValue = glm::vec3(mat.pbrMetallicRoughness.baseColorFactor[0], mat.pbrMetallicRoughness.baseColorFactor[1], mat.pbrMetallicRoughness.baseColorFactor[2]);
 			materialBuffer.Metallic = mat.pbrMetallicRoughness.metallicFactor;
 			materialBuffer.Roughness = mat.pbrMetallicRoughness.roughnessFactor;
-
-			if (mat.pbrMetallicRoughness.baseColorTexture.index != -1)
+			
+			uint32_t albedoTextureIndex = mat.pbrMetallicRoughness.baseColorTexture.index;
+			if (albedoTextureIndex != -1)
 			{
-				const auto& texture = m_Model.textures[mat.pbrMetallicRoughness.baseColorTexture.index];
+				const auto& texture = m_Model.textures[albedoTextureIndex];
 				const auto& image = m_Model.images[texture.source];
 				//image.image.data();
-				CR_LOG_WARN("Texture: {}", image.uri);
-				materialBuffer.AlbedoValue = glm::vec3(1, 0, 1);
+				CR_LOG_WARN("Texture [{}]: {}", mat.pbrMetallicRoughness.baseColorTexture.index, image.uri);
+				auto imagePath = m_Path.parent_path() / image.uri;
+
+				materialBuffer.AlbedoMap = (uint32_t)m_Textures.size();
+				m_Textures.emplace_back(CreateRef<Texture2D>(imagePath));
+
+				materialBuffer.AlbedoValue = glm::vec3(1);
 			}
 			
 			/*
