@@ -1,6 +1,6 @@
 # Project Charon
 
-![alt text](https://www.jdhensley.com/assets/Nyx400x200.png)
+<img src="[https://github.com/favicon.ico](https://www.jdhensley.com/assets/Nyx400x200.png))" width="500">
 
 Charon is a project targeted towards creating learning based projects.
 
